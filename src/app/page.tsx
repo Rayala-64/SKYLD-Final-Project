@@ -7,6 +7,7 @@ import { FloatingElement } from "@/components/animations/FloatingElement";
 import { FadeIn } from "@/components/animations/FadeIn";
 import Link from "next/link";
 import { BrainCircuit, Mic, Sparkles, ArrowRight, ShieldCheck, Zap, PenTool, Flame, Target, Trophy, CheckCircle2 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default async function LandingPage() {
   const supabase = await createClient();
@@ -44,7 +45,8 @@ export default async function LandingPage() {
           </div>
           <span className="text-xl font-bold tracking-tight">SKYLD</span>
         </div>
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4">
+          <ThemeToggle />
           <PremiumButton variant="ghost" className="hidden sm:inline-flex" asChild>
             <Link href="/login">Log In</Link>
           </PremiumButton>

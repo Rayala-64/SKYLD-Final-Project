@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { motion } from "framer-motion";
 import { logout } from "@/app/actions/auth";
+import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 import { createClient } from "@/utils/supabase/client";
 
@@ -75,13 +76,14 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         transition={{ duration: 0.5, ease: [0.25, 0.25, 0, 1] }}
         className="hidden md:flex flex-col w-64 border-r border-border/40 bg-card/50 backdrop-blur-xl"
       >
-        <div className="h-16 flex items-center px-6 border-b border-border/40">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-border/40">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-heading font-bold text-lg shadow-lg">
               S
             </div>
             <span className="font-heading font-bold text-xl tracking-tight">SKYLD</span>
           </Link>
+          <ThemeToggle />
         </div>
 
         <div className="flex-1 overflow-y-auto py-6 px-4">
@@ -150,13 +152,16 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               S
             </div>
           </Link>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          >
-            <Menu className="w-6 h-6" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            >
+              <Menu className="w-6 h-6" />
+            </Button>
+          </div>
         </header>
         
         <main className="flex-1 overflow-y-auto">
