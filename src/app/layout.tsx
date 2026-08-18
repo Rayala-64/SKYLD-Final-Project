@@ -24,7 +24,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
+   <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`}>
       <body className="min-h-full flex flex-col font-sans antialiased text-foreground bg-background">
         <TooltipProvider>
           {children}
