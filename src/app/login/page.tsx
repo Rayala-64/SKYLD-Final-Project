@@ -7,6 +7,7 @@ import { FadeIn } from "@/components/animations/FadeIn";
 import Link from "next/link";
 import { ArrowRight, Lock, AlertTriangle } from "lucide-react";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
+import { QuickDemoAccounts } from "@/components/auth/QuickDemoAccounts";
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const resolvedSearchParams = await searchParams;
@@ -50,18 +51,20 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <form action={login} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Email Address</Label>
-                <Input id="email" name="email" type="email" required placeholder="admin@skyld.com" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
+                <Input id="email" name="email" type="email" required placeholder="name@skyld.com" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Password</Label>
                 </div>
-                <Input id="password" name="password" type="password" required placeholder="••••••••" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
+                <Input id="password" name="password" type="password" required placeholder="Enter your password" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
               </div>
               <PremiumButton type="submit" className="w-full h-12 mt-8 text-base shadow-lg glow-primary">
                 Access Vault <ArrowRight className="w-5 h-5 ml-2" />
               </PremiumButton>
             </form>
+
+            <QuickDemoAccounts />
 
             <div className="mt-8 text-center text-sm text-muted-foreground">
               Have an invite code? <Link href="/signup" className="text-primary hover:text-white transition-colors hover:underline font-medium">Create an account</Link>
