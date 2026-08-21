@@ -5,21 +5,15 @@ import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, BookOpen, Plus, Loader2, Edit2, Trash2 } from "lucide-react";
 import { useState, useEffect } from "react";
-import { getAdminDashboardData, AdminDashboardData, addWordCard, updateWordCard, deleteWordCard, generateInviteCode } from "@/app/actions/admin";
+import { useRouter } from "next/navigation";
+import { getAdminDashboardData, deleteWordCard, generateInviteCode } from "@/app/actions/admin";
+import type { AdminDashboardData } from "@/types/admin";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
   const [data, setData] = useState<AdminDashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Form State
-  const [newWord, setNewWord] = useState("");
-  const [newDefinition, setNewDefinition] = useState("");
-  const [newExample, setNewExample] = useState("");
-  const [newDate, setNewDate] = useState("");
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [message, setMessage] = useState<{type: 'success' | 'error', text: string} | null>(null);
+  const router = useRouter();
 
   // Invite Code State
   const [generatedCode, setGeneratedCode] = useState<string | null>(null);
@@ -44,37 +38,8 @@ export default function AdminDashboard() {
     loadData();
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    setMessage(null);
-    try {
-      if (editingId) {
-        await updateWordCard(editingId, newWord, newDefinition, newExample, newDate);
-        setMessage({ type: 'success', text: 'Word updated successfully!' });
-      } else {
-        await addWordCard(newWord, newDefinition, newExample, newDate);
-        setMessage({ type: 'success', text: 'Word added successfully!' });
-      }
-      setEditingId(null);
-      setNewWord("");
-      setNewDefinition("");
-      setNewExample("");
-      setNewDate("");
-      loadData(); // Reload data
-    } catch (e: any) {
-      setMessage({ type: 'error', text: e.message || 'Failed to save word.' });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const handleEditClick = (word: any) => {
-    setEditingId(word.id);
-    setNewWord(word.word);
-    setNewDefinition(word.definition || "");
-    setNewExample(word.example || "");
-    setNewDate(word.rawDate || "");
+    router.push(`/admin/words?id=${word.id}`);
   };
 
   const handleDeleteClick = async (id: string) => {
@@ -110,13 +75,25 @@ export default function AdminDashboard() {
     );
   }
 
+  if (!data) {
+    return (
+      <DashboardLayout>
+        <div className="max-w-6xl mx-auto space-y-8 pb-12 flex flex-col justify-center items-center h-[50vh] text-center">
+          <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
+          <h2 className="text-2xl font-bold">Failed to load dashboard</h2>
+          <p className="text-muted-foreground mt-2">You may not be authorized, or there was a database error.</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
   const stats = {
-    totalUsers: data?.platformStats.totalStudents || 0,
-    activePods: data?.platformStats.activePods || 0,
-    completionRate: `${data?.platformStats.avgCompletionRate || 0}%`,
-    pendingInvites: data?.platformStats.pendingInvites || 0,
-    pendingAiJobs: data?.platformStats.pendingAiJobs || 0,
-    failedAiJobs: data?.platformStats.failedAiJobs || 0
+    totalUsers: data?.platformStats?.totalStudents || 0,
+    activePods: data?.platformStats?.activePods || 0,
+    completionRate: `${data?.platformStats?.avgCompletionRate || 0}%`,
+    pendingInvites: data?.platformStats?.pendingInvites || 0,
+    pendingAiJobs: data?.platformStats?.pendingAiJobs || 0,
+    failedAiJobs: data?.platformStats?.failedAiJobs || 0
   };
 
   return (
@@ -199,24 +176,25 @@ export default function AdminDashboard() {
           </div>
         )}
 
-        <div className="flex gap-4 mb-8">
-          <button 
+        {/* Dynamic Navigation Tabs */}
+        <div className="flex items-center gap-2 border-b border-border/50 pb-px">
+          <button
             onClick={() => setActiveTab("overview")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === "overview" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"}`}
+            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === "overview" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             Overview
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab("content")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === "content" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"}`}
+            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === "content" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
-            Content Management
+            Curriculum
           </button>
-          <button 
+          <button
             onClick={() => setActiveTab("users")}
-            className={`px-4 py-2 rounded-lg font-medium transition-colors ${activeTab === "users" ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-muted/80"}`}
+            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === "users" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
-            User Directory
+            Users & Roster
           </button>
         </div>
 
@@ -249,11 +227,11 @@ export default function AdminDashboard() {
 
               <PremiumCard className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center text-green-500">
-                    <Activity className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center text-success">
+                    <Shield className="w-6 h-6" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Completion Rate</p>
+                    <p className="text-sm text-muted-foreground">Avg. Completion Rate</p>
                     <p className="text-2xl font-bold">{stats.completionRate}</p>
                   </div>
                 </div>
@@ -261,8 +239,8 @@ export default function AdminDashboard() {
               
               <PremiumCard className="p-6">
                 <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-500">
-                    <AlertTriangle className="w-6 h-6" />
+                  <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center text-warning">
+                    <KeyRound className="w-6 h-6" />
                   </div>
                   <div>
                     <p className="text-sm text-muted-foreground">Pending Invites</p>
@@ -299,7 +277,7 @@ export default function AdminDashboard() {
             <PremiumCard className="p-6">
               <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
               <div className="space-y-4">
-                {data.recentActivity.length > 0 ? data.recentActivity.map((activity) => (
+                {data?.recentActivity?.length > 0 ? data.recentActivity.map((activity) => (
                   <div key={activity.id} className="flex justify-between items-center p-4 bg-muted/30 rounded-xl border border-border/50">
                     <div>
                       <p className="font-medium">{activity.title}</p>
@@ -323,7 +301,7 @@ export default function AdminDashboard() {
                   <BookOpen className="w-5 h-5 text-primary" /> Upcoming Words
                 </h2>
                 <div className="space-y-4">
-                  {data.upcomingWords.map((word) => (
+                  {data?.upcomingWords?.map((word) => (
                     <div key={word.id} className="flex justify-between items-center p-4 bg-muted/30 rounded-xl border border-border/50 group hover:border-primary/50 transition-colors">
                       <div>
                         <p className="font-bold text-lg">{word.word}</p>
@@ -347,81 +325,33 @@ export default function AdminDashboard() {
             </div>
 
             <div>
-              <PremiumCard className="p-6">
+              <PremiumCard className="p-6 h-full flex flex-col">
                 <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
-                  <Plus className="w-5 h-5 text-secondary" /> {editingId ? "Edit Word" : "Add New Word"}
+                  <Plus className="w-5 h-5 text-secondary" /> Word Vault Manager
                 </h2>
                 
-                {message && (
-                  <div className={`p-4 mb-6 rounded-lg text-sm ${message.type === 'success' ? 'bg-green-500/10 text-green-500 border border-green-500/20' : 'bg-destructive/10 text-destructive border border-destructive/20'}`}>
-                    {message.text}
-                  </div>
-                )}
+                <p className="text-sm text-muted-foreground mb-6 flex-1">
+                  Use the advanced 16-field AI Word Editor to create new words, generate missing fields, and manage publishing statuses.
+                </p>
                 
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Word</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={newWord}
-                      onChange={(e) => setNewWord(e.target.value)}
-                      className="w-full bg-muted/50 border border-border/50 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 transition-all outline-none"
-                      placeholder="e.g. Ubiquitous"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Definition</label>
-                    <input 
-                      type="text" 
-                      required
-                      value={newDefinition}
-                      onChange={(e) => setNewDefinition(e.target.value)}
-                      className="w-full bg-muted/50 border border-border/50 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 transition-all outline-none"
-                      placeholder="e.g. Present everywhere"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Example Sentence</label>
-                    <textarea 
-                      required
-                      value={newExample}
-                      onChange={(e) => setNewExample(e.target.value)}
-                      className="w-full bg-muted/50 border border-border/50 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 transition-all outline-none min-h-[100px] resize-none"
-                      placeholder="e.g. His ubiquitous influence was felt by all."
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium mb-2">Active Date</label>
-                    <input 
-                      type="date" 
-                      required
-                      value={newDate}
-                      onChange={(e) => setNewDate(e.target.value)}
-                      className="w-full bg-muted/50 border border-border/50 rounded-xl p-3 focus:ring-2 focus:ring-primary/50 transition-all outline-none"
-                    />
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <PremiumButton type="submit" disabled={isSubmitting} className="w-full">
-                      {isSubmitting ? "Saving..." : editingId ? "Update Word" : "Add Word of the Day"}
-                    </PremiumButton>
-                    {editingId && (
-                      <button 
-                        type="button" 
-                        onClick={() => {
-                          setEditingId(null);
-                          setNewWord("");
-                          setNewDefinition("");
-                          setNewExample("");
-                          setNewDate("");
-                        }}
-                        className="px-4 py-2 border border-border/50 rounded-xl hover:bg-muted/50 transition-colors"
-                      >
-                        Cancel
-                      </button>
-                    )}
-                  </div>
-                </form>
+                <PremiumButton onClick={() => router.push('/admin/words')} className="w-full">
+                  Launch AI Word Editor
+                </PremiumButton>
+              </PremiumCard>
+            </div>
+            <div>
+              <PremiumCard className="p-6 h-full flex flex-col">
+                <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" /> Roster Management
+                </h2>
+                
+                <p className="text-sm text-muted-foreground mb-6 flex-1">
+                  Manage the SKYLD-LDOS Hierarchy. Assign students to Batches, Units, Pods, and configure Buddy Pairs manually.
+                </p>
+                
+                <PremiumButton onClick={() => router.push('/admin/roster')} className="w-full">
+                  Manage Social Hierarchy
+                </PremiumButton>
               </PremiumCard>
             </div>
           </div>
@@ -445,17 +375,17 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.allUsers.map((user) => (
+                  {data?.allUsers?.map((user) => (
                     <tr key={user.id} className="border-b border-border/50 hover:bg-muted/10 transition-colors">
-                      <td className="px-6 py-4 font-medium">{user.full_name}</td>
-                      <td className="px-6 py-4 text-muted-foreground">{user.email}</td>
+                      <td className="px-6 py-4 font-medium">{user.full_name || "Unknown"}</td>
+                      <td className="px-6 py-4 text-muted-foreground">{user.email || "No Email"}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${
                           user.role === 'admin' ? 'bg-primary/10 text-primary border-primary/20' :
                           user.role === 'mentor' ? 'bg-secondary/10 text-secondary border-secondary/20' :
                           'bg-muted text-muted-foreground border-border/50'
                         }`}>
-                          {user.role.charAt(0).toUpperCase() + user.role.slice(1)}
+                          {user.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) : "Student"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-muted-foreground">{user.created_at}</td>

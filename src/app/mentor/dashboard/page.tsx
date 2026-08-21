@@ -78,9 +78,14 @@ export default async function MentorDashboard() {
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-8">
-        <div>
-          <h1 className="text-3xl font-bold font-heading">Mentor Dashboard</h1>
-          <p className="text-muted-foreground mt-2">Manage your pod and review student submissions.</p>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
+          <div>
+            <h1 className="text-3xl font-bold font-heading">Mentor Dashboard</h1>
+            <p className="text-muted-foreground mt-2">Manage your pod and review student submissions.</p>
+          </div>
+          <PremiumButton asChild>
+            <Link href="/mentor/evaluations">Master Evaluations</Link>
+          </PremiumButton>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

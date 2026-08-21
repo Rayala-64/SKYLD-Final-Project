@@ -3,21 +3,28 @@
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { headers, cookies } from "next/headers";
 import { checkRateLimit } from "@/utils/rateLimit";
 
 import { LoginSchema, SignupSchema } from "@/utils/validation";
 
 export async function login(formData: FormData) {
   const ip = (await headers()).get("x-forwarded-for") || "unknown-ip";
-  const isAllowed = await checkRateLimit(`login_${ip}`, 10, 60000);
-  if (!isAllowed) { // 10 attempts per minute
-    redirect("/login?error=" + encodeURIComponent("Too many login attempts. Please try again later."));
+  
+  // Rate limit: Enforced in production, relaxed in development for rapid testing
+  if (process.env.NODE_ENV === "production") {
+    const isAllowed = await checkRateLimit(`login_${ip}`, 10, 60000);
+    if (!isAllowed) { // 10 attempts per minute
+      redirect("/login?error=" + encodeURIComponent("Too many login attempts. Please try again later."));
+    }
   }
 
+  const rawEmail = (formData.get("email") as string || "").trim().toLowerCase();
+  const rawPassword = formData.get("password") as string || "";
+
   const result = LoginSchema.safeParse({
-    email: formData.get("email"),
-    password: formData.get("password")
+    email: rawEmail,
+    password: rawPassword
   });
   
   if (!result.success) {
@@ -39,7 +46,7 @@ export async function login(formData: FormData) {
 
 export async function signup(formData: FormData) {
   const ip = (await headers()).get("x-forwarded-for") || "unknown-ip";
-  const isAllowed = await checkRateLimit(`signup_${ip}`, 15, 60000);
+  const isAllowed = await checkRateLimit(`signup_${ip}`, 5, 60000);
   if (!isAllowed) { // 5 attempts per minute
     redirect("/signup?error=" + encodeURIComponent("Too many signup attempts. Please try again later."));
   }
@@ -124,5 +131,17 @@ export async function signup(formData: FormData) {
 export async function logout() {
   const supabase = await createClient();
   await supabase.auth.signOut();
-  redirect("/");
+
+  try {
+    const cookieStore = await cookies();
+    cookieStore.getAll().forEach((c) => {
+      if (c.name.startsWith("sb-") || c.name.includes("auth-token")) {
+        cookieStore.delete(c.name);
+      }
+    });
+  } catch {
+    // Ignore cookie store errors in non-mutable contexts
+  }
+
+  redirect("/login");
 }

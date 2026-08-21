@@ -6,11 +6,22 @@ import { StaggerContainer, StaggerItem } from "@/components/animations/Stagger";
 import { ProgressRing } from "@/components/ui/custom/ProgressRing";
 import { Progress } from "@/components/ui/progress";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Flame, Zap, Brain, ArrowRight, Trophy, BookOpen, Crown } from "lucide-react";
+import { Flame, Zap, Brain, ArrowRight, Trophy, BookOpen, Crown, Users, Star, Target, Crosshair, Activity } from "lucide-react";
 import Link from "next/link";
+import { createClient } from "@/utils/supabase/server";
+import { ChampionshipLeaderboardRealtime } from "@/components/championships/LeaderboardRealtime";
 
 export default async function StudentDashboard() {
   const data = await getStudentDashboardData();
+  
+  // Fetch championship standings
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: standing } = await supabase
+    .from('championship_standings')
+    .select('*')
+    .eq('student_id', user?.id)
+    .single();
 
   return (
     <DashboardLayout>
@@ -96,21 +107,42 @@ export default async function StudentDashboard() {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-xl bg-purple-500/10 text-purple-500 shrink-0">
-                      <Brain className="w-5 h-5" />
+                      <Trophy className="w-5 h-5" />
                     </div>
-                    <span className="font-semibold text-foreground">Communication Score</span>
+                    <span className="font-semibold text-foreground">Championship Score</span>
                   </div>
-                  {data.stats.communication_score !== null && data.stats.communication_score > 0 ? (
-                    <span className="text-sm font-medium text-muted-foreground">Top 5% globally</span>
+                  {standing ? (
+                    <span className="text-sm font-medium text-muted-foreground">Rank #{standing.batch_rank} in Batch</span>
                   ) : (
-                    <span className="text-sm font-medium text-muted-foreground">No score yet</span>
+                    <span className="text-sm font-medium text-muted-foreground">No championship active</span>
                   )}
                 </div>
+                
+                {standing && (
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-4 text-xs">
+                        <div className="bg-background/50 p-2 rounded-lg text-center">
+                            <span className="block text-muted-foreground mb-1">Ritual</span>
+                            <span className="font-bold">{standing.daily_ritual_points} <span className="opacity-50 font-normal">/ 280</span></span>
+                        </div>
+                        <div className="bg-background/50 p-2 rounded-lg text-center">
+                            <span className="block text-muted-foreground mb-1">Pod Ch.</span>
+                            <span className="font-bold">{standing.pod_challenge_points} <span className="opacity-50 font-normal">/ 40</span></span>
+                        </div>
+                        <div className="bg-background/50 p-2 rounded-lg text-center">
+                            <span className="block text-muted-foreground mb-1">Eval</span>
+                            <span className="font-bold">{(Number(standing.peer_evaluation_points) + Number(standing.master_evaluation_points))} <span className="opacity-50 font-normal">/ 80</span></span>
+                        </div>
+                        <div className="bg-background/50 p-2 rounded-lg text-center">
+                            <span className="block text-muted-foreground mb-1">Grand</span>
+                            <span className="font-bold">{standing.grand_championship_points} <span className="opacity-50 font-normal">/ 150</span></span>
+                        </div>
+                    </div>
+                )}
               </div>
               <div className="flex justify-end">
-                {data.stats.communication_score !== null && data.stats.communication_score > 0 ? (
-                  <ProgressRing progress={data.stats.communication_score} size={80} strokeWidth={6} color="#8b5cf6">
-                    <span className="font-bold text-lg font-heading">{data.stats.communication_score}</span>
+                {standing ? (
+                  <ProgressRing progress={(standing.total_score / 550) * 100} size={80} strokeWidth={6} color="#8b5cf6">
+                    <span className="font-bold text-lg font-heading">{standing.total_score}</span>
                   </ProgressRing>
                 ) : (
                   <div className="w-[80px] h-[80px] flex items-center justify-center rounded-full border-4 border-dashed border-muted/20">
@@ -190,6 +222,37 @@ export default async function StudentDashboard() {
                   </PremiumCard>
                 </div>
               </div>
+
+              {/* Pending Reviews Area */}
+              <div className="pt-4 space-y-4">
+                <h3 className="text-xl font-bold font-heading flex items-center gap-2">
+                  <Users className="text-blue-500 w-5 h-5" /> Pending Reviews
+                </h3>
+                <PremiumCard glass className="p-6 border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-500/5 to-transparent flex items-center justify-between">
+                  <div>
+                    <h4 className="font-bold text-lg">Help your peers grow</h4>
+                    <p className="text-sm text-muted-foreground">Complete assigned Buddy & Peer reviews to earn points.</p>
+                  </div>
+                  <PremiumButton asChild variant="outline" className="border-blue-500 text-blue-500 hover:bg-blue-500/10">
+                    <Link href="/vault/review">Go to Reviews</Link>
+                  </PremiumButton>
+                </PremiumCard>
+                {/* Weekly Challenges Area */}
+              <div className="pt-4 space-y-4">
+                <h3 className="text-xl font-bold font-heading flex items-center gap-2">
+                  <Target className="text-purple-500 w-5 h-5" /> Weekly Pod Challenges
+                </h3>
+                <PremiumCard glass className="p-6 border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-500/5 to-transparent flex flex-col md:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-lg">Pod Collaboration</h4>
+                    <p className="text-sm text-muted-foreground">Submit your weekly collective video challenge to earn up to 10 points.</p>
+                  </div>
+                  <PremiumButton asChild variant="outline" className="border-purple-500 text-purple-500 hover:bg-purple-500/10 w-full md:w-auto">
+                    <Link href="/vault/challenge">View Challenge</Link>
+                  </PremiumButton>
+                </PremiumCard>
+              </div>
+            </div>
             </div>
 
           {/* Sidebar Area */}
@@ -197,29 +260,13 @@ export default async function StudentDashboard() {
             <PremiumCard glass className="p-0 overflow-hidden">
               <div className="p-4 border-b border-border/40 flex items-center justify-between">
                 <h3 className="font-semibold flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-yellow-500" /> Leaderboard Top 3
+                  <Crown className="w-5 h-5 text-yellow-500" /> Championship Standings
                 </h3>
                 <Link href="/leaderboard" className="text-xs font-semibold text-primary hover:underline">
                   View Full
                 </Link>
               </div>
-              <div className="p-4 space-y-4">
-                {data.leaderboardPreview.map((user) => (
-                  <div key={user.student_id} className={`flex items-center justify-between p-3 rounded-xl transition-colors ${user.student_id === "2" ? 'bg-primary/10 border border-primary/20' : 'hover:bg-muted/50'}`}>
-                    <div className="flex items-center gap-3">
-                      <div className={`w-6 text-center font-bold ${user.pod_rank === 1 ? 'text-yellow-500' : user.pod_rank === 2 ? 'text-gray-400' : 'text-amber-700'}`}>
-                        {user.pod_rank}
-                      </div>
-                      <Avatar className="w-8 h-8 border border-border">
-                        <AvatarImage src={user.avatar_url || ''} />
-                        <AvatarFallback>{user.full_name.charAt(0)}</AvatarFallback>
-                      </Avatar>
-                      <span className={`font-medium ${user.student_id === "2" ? 'text-primary' : ''}`}>{user.full_name}</span>
-                    </div>
-                    <span className="text-sm font-semibold text-muted-foreground">{user.xp} XP</span>
-                  </div>
-                ))}
-              </div>
+              <ChampionshipLeaderboardRealtime initialData={data.championshipLeaderboard} />
             </PremiumCard>
 
             <PremiumCard glass className="p-6 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-500/20">

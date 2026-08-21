@@ -12,7 +12,7 @@
 
 **SKYLD Word Vault™** is a highly secure, scalable, and premium web application designed to bridge the gap between passive vocabulary learning and active communication. By utilizing **Google Gemini AI** and **Supabase**, this platform creates a rich, interactive daily learning loop for students, while providing Mentors and Administrators with powerful oversight tools.
 
-Built as a **Modular Monolith** using **Next.js 15 (App Router)**, it balances the rapid iteration speed of a monolith with the organizational clarity needed for enterprise scaling.
+Built as a **Modular Monolith** using **Next.js 16 (App Router)**, it balances the rapid iteration speed of a monolith with the organizational clarity needed for enterprise scaling. It has been built out in four distinct phases, resulting in a production-ready, ₹0-cost scalable architecture.
 
 ---
 
@@ -78,29 +78,32 @@ The application employs a strict **Role-Based Access Control (RBAC)** model defi
 
 ---
 
-## ✨ Feature Breakdown
+## ✨ Feature Breakdown (Phases 1-4)
 
-### 🎓 For Students (The Vault & Social Loop)
-* **The 6-Step Daily Mission:** A structured learning path: `Discover -> Practice Quiz -> Apply (Sentence) -> Reflect -> Speak (Video) -> Result`.
-* **Gamification Engine:** Real-time XP tracking via centralized secure server actions, dynamic Leveling, Streaks, and Daily Quests (e.g. "Maintain Streak").
-* **Word Vault & Learning Path:** A beautifully designed "Vault" archiving all past learned vocabulary, and a visual Learning Path tracking progress from Foundations to Master Communicator.
-* **The Pod Hub:** A dedicated space for students to view their cohort's leaderboard, track the total "Pod Score", and chat on the real-time Pod Message Board.
-* **Study Buddy:** A dashboard widget that tracks an assigned partner's daily progress to encourage mutual accountability.
-* **AI Coach:** Instant grading and constructive feedback on written text and spoken language, securely parsed and validated for UI rendering.
-* **Secure Video Recording:** Browser-based WebRTC recording that uploads directly to a private cloud bucket.
-* **Premium Dashboard & Landing Page:** High-converting modern startup landing page featuring rich animations, glassmorphism, and clear CTAs.
+### 🏫 Phase 1: Social Hierarchy (Batches, Units, Pods)
+* **Batches & Units**: Students are grouped into grand "Batches" and smaller "Units".
+* **Pods**: Tight-knit micro-cohorts where students collaborate. Mentors are assigned directly to Pods.
+* **Buddy System**: Intelligent matchmaking for daily accountability within a Pod.
+
+### 🎓 Phase 2 & 3: For Students (The Vault & Social Loop)
+* **The 16-Field Word Card**: Expanded vocabulary structure including IPA pronunciation, synonyms, antonyms, business/life examples, common mistakes, and communication challenges.
+* **The Daily Ritual**: A robust, transaction-safe daily learning flow (`Discover -> Practice Quiz -> Apply -> Reflect -> Speak -> Result`).
+* **Ritual Reviews (Peer Feedback)**: Students review each other's submissions asynchronously via secure, short-lived video URLs.
+* **Gamification Engine**: Real-time XP tracking, Daily Ritual points, Badges, and Streaks.
+* **Championships & Leaderboards**: Weekly themes and pod-based competitions culminating in a Grand Championship. Standings are tracked securely via PostgreSQL Views.
+* **In-App Notifications**: Real-time bell notifications tracking system events, review assignments, and championship updates.
 
 ### 👨‍🏫 For Mentors (The Dashboard)
-* **Pod Management:** View activity statuses and streaks for a cohort of students at a glance.
-* **Deep-Dive Student Profiles:** Access a specialized mentor view of a student's entire historic archive, including exact AI scores and feedback.
-* **Private Notes System:** Leave hidden, private observations on a student's profile. Mentors can "Flag" a note for urgent review.
-* **Pod Communication:** Mentors have access to the Pod Hub to broadcast messages directly to their students.
+* **Pod Management**: View activity statuses, streaks, and engagement metrics for a cohort of students.
+* **Deep-Dive Student Profiles**: Access a specialized mentor view of a student's historic archive, including exact AI scores and feedback.
+* **Master Evaluations**: Mentors can override or provide authoritative evaluations during Championship Weeks.
 
-### 👑 For Administrators (The CMS)
-* **AI Auto-Generation:** When an Admin authors a new Word Card, the system automatically prompts Gemini in the background to generate multiple-choice practice quiz questions and saves them to the database.
-* **Global Announcements:** Admins can pin important broadcast messages directly to the top of all Student Dashboards.
-* **Global User Directory:** Real-time visibility into all platform users, roles, and pod assignments.
-* **Invite System:** Generate secure, single-use invite codes to onboard new mentors and students safely.
+### 👑 Phase 4: Scaling & Analytics Audit (Current Phase)
+* **Production-Ready Analytics**: Deeply optimized PostgreSQL Views (`student_engagement_stats`, `vocabulary_performance_stats`, `pod_standings`, `system_health_metrics`) providing real-time metrics on engagement and health.
+* **AI Background Jobs & Cron**: A robust background job queue (`ai_jobs`) processing Gemini AI evaluations asynchronously. Processed via Vercel Cron jobs (`/api/cron/process-ai`) to ensure no timeouts during heavy submissions.
+* **Dynamic Analytics**: Removed fragile legacy columns (e.g. `current_streak`) in favor of dynamic, on-the-fly SQL window functions calculating active streaks securely.
+* **System Hardening**: Client-side component optimization, React Strict Mode hydration fixes for real-time channels (e.g. Supabase NotificationBell), and resilient Server Actions.
+* **Global Directory**: Real-time visibility into all platform users, roles, and pod assignments directly in the Admin CMS.
 
 ---
 
@@ -131,8 +134,11 @@ GEMINI_API_KEY=your_gemini_api_key
 ```
 
 ### 4. Database Setup (Supabase)
-1. Go to your Supabase project's **SQL Editor**.
-2. Copy the exact contents of `supabase/schema.sql` and run it. This creates all tables, enums (including `level` and `submission_status`), RLS policies, and the private `videos` storage bucket.
+Run the Supabase CLI to apply the exact production schema, security rules, and seed data:
+```bash
+npx supabase link --project-ref your_project_ref
+npx supabase db push
+```
 
 ### 5. Seed Mock Data
 Populate your local environment with dummy users, word cards, and test submissions:

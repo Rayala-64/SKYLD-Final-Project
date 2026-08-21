@@ -3,49 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import crypto from "crypto";
 
-export interface AdminDashboardData {
-  platformStats: {
-    totalStudents: number;
-    activePods: number;
-    wordsLearned: number;
-    avgCompletionRate: number;
-    pendingInvites: number;
-    pendingAiJobs: number;
-    failedAiJobs: number;
-  };
-  recentReflections: Array<{
-    id: string;
-    student_name: string;
-    word: string;
-    ai_quality: number;
-    created_at: string;
-  }>;
-  upcomingWords: Array<{
-    id: string;
-    date: string;
-    word: string;
-    definition: string;
-    example: string;
-    rawDate: string;
-  }>;
-  recentActivity: Array<{
-    id: string;
-    title: string;
-    description: string;
-    time: string;
-  }>;
-  allUsers: Array<{
-    id: string;
-    full_name: string;
-    email: string;
-    role: string;
-    created_at: string;
-  }>;
-  pods: Array<{
-    id: string;
-    name: string;
-  }>;
-}
+import type { AdminDashboardData } from "@/types/admin";
 
 export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const supabase = await createClient();
@@ -292,4 +250,20 @@ export async function createAnnouncement(title: string, body: string, scope: 'gl
     throw new Error("Unable to create announcement.");
   }
   return { success: true };
+}
+
+import { generateWordContentInternal, GeneratedWordData } from "@/lib/server/ai";
+
+export async function generateAIWordAction(word: string, wordType: string, fieldToRegenerate?: keyof GeneratedWordData, existingData?: Partial<GeneratedWordData>) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+  
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+  if (!profile || profile.role !== 'admin') throw new Error("Unauthorized");
+
+  const data = await generateWordContentInternal(word, wordType, fieldToRegenerate, existingData);
+  if (!data) throw new Error("Failed to generate content");
+  
+  return { success: true, data };
 }

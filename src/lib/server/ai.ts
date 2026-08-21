@@ -218,3 +218,90 @@ export async function generateActivitiesInternal(word: string, definition: strin
     return null;
   }
 }
+
+export const GeneratedWordSchema = z.object({
+  ipa_pronunciation: z.string(),
+  meaning: z.string(),
+  synonyms: z.array(z.string()),
+  antonyms: z.array(z.string()),
+  word_family: z.array(z.string()),
+  common_collocations: z.array(z.string()),
+  business_example: z.string(),
+  daily_life_example: z.string(),
+  interview_example: z.string(),
+  related_concepts: z.array(z.string()),
+  common_mistakes: z.array(z.object({
+    mistake: z.string(),
+    correction: z.string(),
+    is_correct: z.boolean()
+  })),
+  memory_tip: z.string(),
+  reflection_question: z.string(),
+  communication_challenge: z.string()
+});
+
+export type GeneratedWordData = z.infer<typeof GeneratedWordSchema>;
+
+export async function generateWordContentInternal(word: string, wordType: string, fieldToRegenerate?: keyof GeneratedWordData, existingData?: Partial<GeneratedWordData>): Promise<GeneratedWordData | Partial<GeneratedWordData> | null> {
+  if (!ENABLED || !genAI) {
+    throw new Error("AI is disabled or API key missing");
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({ 
+      model: MODEL_NAME,
+      generationConfig: { responseMimeType: "application/json" }
+    });
+    
+    let prompt = `
+      You are an expert linguist and professional leadership coach.
+      Create professional vocabulary training content for the word: "${word}" (Type: ${wordType || 'Unknown'}).
+      
+      Target Audience: Young professionals and students learning leadership skills.
+    `;
+
+    if (fieldToRegenerate && existingData) {
+      prompt += `
+      The user requested to REGENERATE ONLY the field: "${fieldToRegenerate}".
+      Here is the existing data context for the word:
+      ${JSON.stringify(existingData, null, 2)}
+      
+      Return ONLY a JSON object containing the newly generated "${fieldToRegenerate}" field and nothing else.
+      Ensure the new content is significantly different and improved compared to the old one.
+      `;
+    } else {
+      prompt += `
+      Return ONLY a JSON object with this EXACT structure (populate all fields with high quality content):
+      {
+        "ipa_pronunciation": "/juˈbɪkwɪtəs/",
+        "meaning": "Present, appearing, or found everywhere.",
+        "synonyms": ["omnipresent", "pervasive", "universal"],
+        "antonyms": ["rare", "scarce", "infrequent"],
+        "word_family": ["ubiquity", "ubiquitously"],
+        "common_collocations": ["ubiquitous presence", "ubiquitous technology"],
+        "business_example": "Smartphones have become a ubiquitous tool in modern business operations.",
+        "daily_life_example": "Coffee shops are ubiquitous in the downtown area.",
+        "interview_example": "I designed a ubiquitous data-tracking system that the entire company now relies on.",
+        "related_concepts": ["Globalization", "Digitalization"],
+        "common_mistakes": [
+          { "mistake": "Using it to mean simply 'popular'.", "correction": "Use it to mean 'present everywhere'.", "is_correct": false }
+        ],
+        "memory_tip": "Think of 'U B' (you be) everywhere.",
+        "reflection_question": "When has a ubiquitous trend positively impacted your work?",
+        "communication_challenge": "Describe a technology using the word ${word} in a 30-second speech."
+      }
+      `;
+    }
+
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    let text = response.text();
+    text = text.replace(/```json/gi, '').replace(/```/g, '').trim();
+    
+    const parsed = JSON.parse(text);
+    return parsed;
+  } catch (error) {
+    console.error("Gemini AI Error (generateWordContent):", error);
+    throw new Error("Failed to generate word content");
+  }
+}

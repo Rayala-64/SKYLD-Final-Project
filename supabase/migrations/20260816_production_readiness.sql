@@ -338,6 +338,7 @@ ALTER TABLE public.ai_jobs ADD COLUMN IF NOT EXISTS attempts INTEGER DEFAULT 0;
 -------------------------------------------------------------------------------
 -- 8. Replace claim_next_ai_job to use exponential backoff
 -------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.claim_next_ai_job();
 CREATE OR REPLACE FUNCTION public.claim_next_ai_job()
 RETURNS TABLE (
   job_id uuid,

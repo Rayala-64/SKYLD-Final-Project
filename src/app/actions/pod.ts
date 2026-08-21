@@ -164,8 +164,30 @@ export async function setStudyBuddy(buddyId: string) {
   if (!user) throw new Error("Unauthorized");
   if (user.id === buddyId) throw new Error("Cannot select yourself as a buddy");
 
-  const { error } = await supabase.rpc("set_study_buddy", {
-    p_buddy_id: buddyId
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  );
+
+  const { data: profile } = await adminClient.from("users").select("pod_id").eq("id", user.id).single();
+  if (!profile || !profile.pod_id) throw new Error("No pod assigned");
+
+  // Ensure user1_id < user2_id for constraint
+  const user1 = user.id < buddyId ? user.id : buddyId;
+  const user2 = user.id < buddyId ? buddyId : user.id;
+
+  // Deactivate old pairs involving these users in this pod
+  await adminClient.from("buddy_pairs")
+    .update({ active: false, unassigned_at: new Date().toISOString() })
+    .eq("pod_id", profile.pod_id)
+    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id},user1_id.eq.${buddyId},user2_id.eq.${buddyId}`);
+
+  // Create new active pair
+  const { error } = await adminClient.from("buddy_pairs").insert({
+    pod_id: profile.pod_id,
+    user1_id: user1,
+    user2_id: user2,
+    active: true
   });
 
   if (error) {

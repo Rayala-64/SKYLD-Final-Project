@@ -13,15 +13,16 @@ import {
   Menu,
   Archive,
   BookMarked,
-  Map,
+  MessageSquareCheck,
+  Map as MapIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { motion } from "framer-motion";
 import { logout } from "@/app/actions/auth";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-
 import { createClient } from "@/utils/supabase/client";
 
 // Dynamic links will be generated inside the component based on the pathname
@@ -48,11 +49,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   let sidebarLinks = [];
-  if (pathname.startsWith("/admin")) {
+  if (pathname?.startsWith("/admin")) {
     sidebarLinks = [
       { name: "Admin Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     ];
-  } else if (pathname.startsWith("/mentor")) {
+  } else if (pathname?.startsWith("/mentor")) {
     sidebarLinks = [
       { name: "Mentor Dashboard", href: "/mentor/dashboard", icon: LayoutDashboard },
       { name: "My Pod", href: "/mentor/pod", icon: Users },
@@ -60,8 +61,9 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   } else {
     sidebarLinks = [
       { name: "Dashboard", href: "/vault/dashboard", icon: LayoutDashboard },
-      { name: "Learning Path", href: "/vault/path", icon: Map },
+      { name: "Learning Path", href: "/vault/path", icon: MapIcon },
       { name: "Word Vault", href: "/vault/library", icon: BookMarked },
+      { name: "Review Queue", href: "/vault/review", icon: MessageSquareCheck },
       { name: "My Pod", href: "/vault/pod", icon: Users },
       { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
     ];
@@ -76,14 +78,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         transition={{ duration: 0.5, ease: [0.25, 0.25, 0, 1] }}
         className="hidden md:flex flex-col w-64 border-r border-border/40 bg-card/50 backdrop-blur-xl"
       >
-        <div className="h-16 flex items-center justify-between px-6 border-b border-border/40">
+        <div className="h-16 flex items-center px-6 border-b border-border/40">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-heading font-bold text-lg shadow-lg">
               S
             </div>
             <span className="font-heading font-bold text-xl tracking-tight">SKYLD</span>
           </Link>
-          <ThemeToggle />
         </div>
 
         <div className="flex-1 overflow-y-auto py-6 px-4">
@@ -118,13 +119,19 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="p-4 border-t border-border/40">
-          <div className="flex items-center gap-3 px-2 py-2 mb-2">
-            <Avatar className="w-10 h-10 border border-border/50 ring-2 ring-primary/20">
-              <AvatarFallback>{userProfile ? userProfile.full_name.substring(0, 2).toUpperCase() : "..."}</AvatarFallback>
-            </Avatar>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{userProfile ? userProfile.full_name : "Loading..."}</span>
-              <span className="text-xs text-muted-foreground">Level {userProfile ? userProfile.level : "..."}</span>
+          <div className="flex items-center gap-3 px-2 py-2 mb-2 justify-between">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-10 h-10 border border-border/50 ring-2 ring-primary/20">
+                <AvatarFallback>{userProfile ? (userProfile.full_name || "??").substring(0, 2).toUpperCase() : "..."}</AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col">
+                <span className="text-sm font-medium">{userProfile ? (userProfile.full_name || "Unknown User") : "Loading..."}</span>
+                <span className="text-xs text-muted-foreground">Level {userProfile ? (userProfile.level || 1) : "..."}</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <ThemeToggle className="w-8 h-8 rounded-lg p-1.5" />
+              <NotificationBell />
             </div>
           </div>
           <nav className="space-y-1">
@@ -135,7 +142,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             </Link>
             <form action={logout} className="w-full">
-              <button type="submit" className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-left">
+              <button type="submit" className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-left cursor-pointer">
                 <LogOut className="w-5 h-5" />
                 <span className="text-sm">Log out</span>
               </button>
@@ -153,7 +160,8 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </div>
           </Link>
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            <ThemeToggle className="w-8 h-8 rounded-lg p-1.5" />
+            <NotificationBell />
             <Button
               variant="ghost"
               size="icon"

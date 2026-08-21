@@ -64,9 +64,6 @@ export function LeaderboardClient({ users }: { users: LeaderboardUser[] }) {
                     </div>
                     <div className="text-right">
                       <div className="font-bold font-heading text-lg">{user.xp} XP</div>
-                      <div className="text-xs text-success flex items-center justify-end gap-1">
-                        <TrendingUp className="w-3 h-3" /> +150 today
-                      </div>
                     </div>
                   </div>
                 </StaggerItem>
