@@ -111,3 +111,132 @@ export async function submitPeerEvaluationPhase3(peerEvaluationId: string, score
 
   return { success: true };
 }
+
+export async function getPodChallengeStatus(weeklyChallengeId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return null;
+
+  // get user's pod
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    {
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+      },
+    }
+  );
+
+  const { data: profile } = await adminClient.from('users').select('pod_id').eq('id', user.id).single();
+  if (!profile || !profile.pod_id) return null;
+
+  const { data: submission } = await adminClient
+    .from('pod_challenge_submissions')
+    .select('id, status')
+    .eq('weekly_challenge_id', weeklyChallengeId)
+    .eq('pod_id', profile.pod_id)
+    .maybeSingle();
+
+  return {
+    podId: profile.pod_id,
+    hasSubmitted: !!submission,
+    status: submission?.status || null
+  };
+}
+
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { unstable_noStore as noStore } from "next/cache";
+
+export async function getMentorEvaluationsData() {
+  noStore();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    {
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+      },
+    }
+  );
+
+  const { data: podMentors } = await adminClient.from("pod_mentors").select("pod_id").eq("mentor_id", user.id);
+  const { data: unitMentors } = await adminClient.from("unit_mentors").select("unit_id").eq("mentor_id", user.id);
+
+  const directPodIds = podMentors?.map((pm: any) => pm.pod_id) || [];
+  const unitIds = unitMentors?.map((um: any) => um.unit_id) || [];
+  
+  let extraPodIds: string[] = [];
+  if (unitIds.length > 0) {
+    const { data: podsInUnits } = await adminClient.from("pods").select("id").in("unit_id", unitIds);
+    extraPodIds = podsInUnits?.map((p: any) => p.id) || [];
+  }
+
+  const allPodIds = Array.from(new Set([...directPodIds, ...extraPodIds]));
+
+  if (allPodIds.length === 0) return [];
+
+  const { data: pods } = await adminClient
+    .from("pods")
+    .select(`
+      id,
+      name,
+      units ( name )
+    `)
+    .in("id", allPodIds);
+
+  if (!pods) return [];
+
+  // Fetch active challenge
+  const { data: activeChallenge } = await adminClient
+    .from('weekly_challenges')
+    .select('id, title, championship_week_id')
+    .eq('active', true)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!activeChallenge) return []; // No active challenges to evaluate
+
+  // Fetch submissions for this challenge from the mentor's pods
+  const { data: submissions } = await adminClient
+    .from('pod_challenge_submissions')
+    .select('pod_id, video_url, description')
+    .eq('weekly_challenge_id', activeChallenge.id)
+    .in('pod_id', allPodIds);
+
+  const submissionsMap = new Map(submissions?.map((s: any) => [s.pod_id, s]) || []);
+
+  // Fetch master evaluations by this mentor for this week
+  const { data: evaluations } = await adminClient
+    .from('master_evaluations')
+    .select('pod_id')
+    .eq('championship_week_id', activeChallenge.championship_week_id)
+    .eq('mentor_id', user.id);
+
+  const evaluatedPodIds = new Set(evaluations?.map((e: any) => e.pod_id) || []);
+
+  return pods.map((p: any) => {
+    const sub = submissionsMap.get(p.id);
+    const hasEvaluated = evaluatedPodIds.has(p.id);
+    
+    let status = "WAITING_FOR_SUBMISSION";
+    if (sub && !hasEvaluated) status = "PENDING";
+    if (hasEvaluated) status = "COMPLETED";
+
+    return {
+      id: p.id,
+      name: p.name,
+      unit: p.units?.name || "No Unit",
+      challenge_title: activeChallenge.title,
+      video_url: sub ? sub.video_url : null,
+      description: sub ? sub.description : null,
+      status: status,
+      championship_week_id: activeChallenge.championship_week_id
+    };
+  });
+}

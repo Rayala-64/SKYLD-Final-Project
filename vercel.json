@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/accountability",
+      "schedule": "59 23 * * *"
+    },
+    {
+      "path": "/api/cron/process-ai",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-videos",
+      "schedule": "0 2 * * *"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { analyzeReflectionInternal, analyzeSpeechInternal } from "@/lib/server/ai";
 
 function getAdminClient() {
   return createAdminClient(
@@ -52,6 +53,21 @@ export async function submitRitualStep(ritualId: string, stepNumber: number, ste
     }
   }
 
+  return data;
+}
+
+export async function getWordCardByText(wordText: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from('word_cards')
+    .select('*')
+    .ilike('word', wordText)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error fetching word card:", error);
+    return null;
+  }
   return data;
 }
 
@@ -116,6 +132,47 @@ export async function submitDailyMissionV2(
 
   if (error) {
     throw new Error(error.message);
+  }
+
+  // Trigger immediate AI evaluation in background
+  (async () => {
+    try {
+      const { data: wordRow } = await adminClient.from('word_cards').select('word').eq('id', wordCardId).single();
+      const wordText = wordRow?.word || 'candid';
+      
+      const [reflectionRes, speechRes] = await Promise.all([
+        analyzeReflectionInternal(userId, wordText, reflectionText),
+        videoUrl ? analyzeSpeechInternal(userId, wordText, videoUrl) : Promise.resolve({ status: 'completed', data: null, error: undefined })
+      ]);
+
+      const updatePayload: any = {};
+      if (reflectionRes?.data) {
+        const fb: any = reflectionRes.data;
+        fb.comment = fb.improvement_suggestions?.[0] || 'Great work!';
+        updatePayload.reflection_ai_feedback = fb;
+      }
+      if (speechRes?.data) {
+        updatePayload.video_ai_feedback = speechRes.data;
+      }
+
+      if (Object.keys(updatePayload).length > 0) {
+        await adminClient.from('submissions').update(updatePayload).match({ user_id: userId, word_card_id: wordCardId });
+      }
+    } catch (aiErr) {
+      console.error("Non-blocking immediate AI evaluation error:", aiErr);
+    }
+  })();
+
+  // 0. Award 3 points for recording submission
+  const { data: { user } } = await supabase.auth.getUser();
+  if (user) {
+    await supabase.rpc('complete_ritual_step', {
+      p_ritual_id: ritualId,
+      p_step_number: 5,
+      p_step_type: 'RECORD_AND_UPLOAD',
+      p_points: 3,
+      p_user_id: user.id
+    });
   }
 
   // 1. Assign Buddy Review (using admin client to safely write cross-user review queue)

@@ -7,7 +7,9 @@ import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, Book
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminDashboardData, deleteWordCard, generateInviteCode } from "@/app/actions/admin";
+import { launchGlobalWeeklyChallenge } from "@/app/actions/championship_admin";
 import type { AdminDashboardData } from "@/types/admin";
+import { Trophy } from "lucide-react";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -21,6 +23,13 @@ export default function AdminDashboard() {
   const [invitePodId, setInvitePodId] = useState<string>("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [showInviteModal, setShowInviteModal] = useState(false);
+
+  // Championship State
+  const [cTheme, setCTheme] = useState("Innovation & Technology");
+  const [cTitle, setCTitle] = useState("Week 3 Challenge");
+  const [cTask, setCTask] = useState("Present a 16-minute seamless story as a Pod. Each member must speak for 2 minutes on how emerging AI tools impact your local community. Ensure smooth transitions between speakers.");
+  const [cRules, setCRules] = useState("Only one submission per Pod.\nAll members must participate.\nEvaluated by Peer Pods, Mentors, and Faculty.");
+  const [isLaunching, setIsLaunching] = useState(false);
 
   const loadData = () => {
     setLoading(true);
@@ -122,11 +131,11 @@ export default function AdminDashboard() {
                   <select 
                     value={inviteRole} 
                     onChange={(e) => setInviteRole(e.target.value)}
-                    className="w-full bg-muted/50 border border-border/50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary/50"
+                    className="w-full bg-card text-foreground border border-border/60 rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="student">Student</option>
-                    <option value="mentor">Mentor</option>
-                    <option value="admin">Admin</option>
+                    <option value="student" className="bg-card text-foreground">Student</option>
+                    <option value="mentor" className="bg-card text-foreground">Mentor</option>
+                    <option value="admin" className="bg-card text-foreground">Admin</option>
                   </select>
                 </div>
 
@@ -135,11 +144,11 @@ export default function AdminDashboard() {
                   <select 
                     value={invitePodId} 
                     onChange={(e) => setInvitePodId(e.target.value)}
-                    className="w-full bg-muted/50 border border-border/50 rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary/50"
+                    className="w-full bg-card text-foreground border border-border/60 rounded-xl p-3 outline-none focus:ring-2 focus:ring-primary/50"
                   >
-                    <option value="">None (Floating User)</option>
+                    <option value="" className="bg-card text-foreground">None (Floating User)</option>
                     {data?.pods?.map(pod => (
-                      <option key={pod.id} value={pod.id}>{pod.name}</option>
+                      <option key={pod.id} value={pod.id} className="bg-card text-foreground">{pod.name}</option>
                     ))}
                   </select>
                 </div>
@@ -195,6 +204,12 @@ export default function AdminDashboard() {
             className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === "users" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
           >
             Users & Roster
+          </button>
+          <button
+            onClick={() => setActiveTab("championships")}
+            className={`px-4 py-2 font-medium text-sm transition-colors border-b-2 ${activeTab === "championships" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+          >
+            Championships
           </button>
         </div>
 
@@ -402,6 +417,54 @@ export default function AdminDashboard() {
               </table>
             </div>
           </PremiumCard>
+        )}
+
+        {activeTab === "championships" && (
+          <div className="max-w-2xl mx-auto space-y-6">
+            <PremiumCard className="p-8 border-l-4 border-l-purple-500">
+              <h2 className="text-2xl font-bold mb-2 flex items-center gap-2">
+                <Trophy className="w-6 h-6 text-warning" /> Launch Weekly Challenge
+              </h2>
+              <p className="text-muted-foreground mb-8">Deploy a new Weekly Challenge globally to all active Pods. This will automatically close any previous challenge and start a new championship week.</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-bold text-muted-foreground mb-2">Theme</label>
+                  <input type="text" value={cTheme} onChange={e => setCTheme(e.target.value)} className="w-full bg-background/50 border border-border rounded-xl p-4 focus:ring-2 focus:ring-primary/50 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-muted-foreground mb-2">Title</label>
+                  <input type="text" value={cTitle} onChange={e => setCTitle(e.target.value)} className="w-full bg-background/50 border border-border rounded-xl p-4 focus:ring-2 focus:ring-primary/50 outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-muted-foreground mb-2">Task Description</label>
+                  <textarea value={cTask} onChange={e => setCTask(e.target.value)} className="w-full bg-background/50 border border-border rounded-xl p-4 min-h-[120px] focus:ring-2 focus:ring-primary/50 outline-none resize-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-bold text-muted-foreground mb-2">Rules (Line separated)</label>
+                  <textarea value={cRules} onChange={e => setCRules(e.target.value)} className="w-full bg-background/50 border border-border rounded-xl p-4 min-h-[100px] focus:ring-2 focus:ring-primary/50 outline-none resize-none" />
+                </div>
+                
+                <PremiumButton 
+                  className="w-full bg-purple-500 hover:bg-purple-600 text-white py-4"
+                  disabled={isLaunching}
+                  onClick={async () => {
+                    setIsLaunching(true);
+                    try {
+                      await launchGlobalWeeklyChallenge(cTheme, cTitle, cTask, cRules);
+                      alert("Challenge successfully launched to all Pods!");
+                    } catch (e: any) {
+                      alert(e.message);
+                    } finally {
+                      setIsLaunching(false);
+                    }
+                  }}
+                >
+                  {isLaunching ? "Launching Challenge..." : "Launch Global Challenge Now"}
+                </PremiumButton>
+              </div>
+            </PremiumCard>
+          </div>
         )}
       </div>
     </DashboardLayout>

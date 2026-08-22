@@ -9,6 +9,8 @@ import { SelectBuddyButton } from "@/components/pod/SelectBuddyButton";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
+export const dynamic = 'force-dynamic';
+
 export default async function PodPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

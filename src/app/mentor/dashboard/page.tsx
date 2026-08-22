@@ -7,6 +7,8 @@ import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 
+export const dynamic = 'force-dynamic';
+
 export default async function MentorDashboard() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -17,34 +19,47 @@ export default async function MentorDashboard() {
 
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    {
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+      },
+    }
   );
 
-  // Fetch mentor profile
-  const { data: mentorProfile } = await adminClient
-    .from("users")
-    .select("pod_id")
-    .eq("id", user.id)
-    .single();
+  // Fetch mentor assignments from pod_mentors and unit_mentors
+  const { data: podMentors } = await adminClient.from("pod_mentors").select("pod_id").eq("mentor_id", user.id);
+  const { data: unitMentors } = await adminClient.from("unit_mentors").select("unit_id").eq("mentor_id", user.id);
 
-  if (!mentorProfile?.pod_id) {
+  const directPodIds = podMentors?.map(pm => pm.pod_id) || [];
+  const unitIds = unitMentors?.map(um => um.unit_id) || [];
+  
+  let extraPodIds: string[] = [];
+  if (unitIds.length > 0) {
+    const { data: podsInUnits } = await adminClient.from("pods").select("id").in("unit_id", unitIds);
+    extraPodIds = podsInUnits?.map(p => p.id) || [];
+  }
+
+  const allPodIds = Array.from(new Set([...directPodIds, ...extraPodIds]));
+
+  if (allPodIds.length === 0) {
     return (
       <DashboardLayout>
         <div className="max-w-6xl mx-auto space-y-8">
           <h1 className="text-3xl font-bold font-heading">Mentor Dashboard</h1>
           <PremiumCard className="p-6">
-            <p className="text-muted-foreground">You are not assigned to a Pod yet. Contact an administrator.</p>
+            <p className="text-muted-foreground">You are not assigned to any Pods or Units yet. Contact an administrator.</p>
           </PremiumCard>
         </div>
       </DashboardLayout>
     );
   }
 
-  // Fetch students in this pod
+  // Fetch students in all assigned pods
   const { data: studentsData } = await adminClient
     .from("users")
-    .select("id, full_name, email, role")
-    .eq("pod_id", mentorProfile.pod_id)
+    .select("id, full_name, email, role, pod_id")
+    .in("pod_id", allPodIds)
     .eq("role", "student");
 
   // Fetch submissions using admin client

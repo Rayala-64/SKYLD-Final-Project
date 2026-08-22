@@ -43,11 +43,11 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   );
 
   const [studentsRes, podsRes, wordsRes, invitesRes, submissionsRes, upcomingRes, usersRecentRes, allUsersRes, submissionsTodayRes, pendingAiRes, failedAiRes] = await Promise.all([
-    safeQuery(supabase.from("users").select("id", { count: "exact", head: true }).eq("role", "student")),
-    safeQuery(supabase.from("pods").select("id, name", { count: "exact" })),
-    safeQuery(supabase.from("submissions").select("id", { count: "exact", head: true }).eq("status", "submitted")),
-    safeQuery(supabase.from("invites").select("id", { count: "exact", head: true }).is("used_by", null)),
-    safeQuery(supabase.from("submissions")
+    safeQuery(adminClient.from("users").select("id", { count: "exact", head: true }).eq("role", "student")),
+    safeQuery(adminClient.from("pods").select("id, name", { count: "exact" })),
+    safeQuery(adminClient.from("submissions").select("id", { count: "exact", head: true }).eq("status", "submitted")),
+    safeQuery(adminClient.from("invites").select("id", { count: "exact", head: true }).is("used_by", null)),
+    safeQuery(adminClient.from("submissions")
       .select(`
         id, 
         reflection_ai_feedback, 
@@ -60,10 +60,10 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
       .eq("status", "submitted")
       .order("date", { ascending: false })
       .limit(5)),
-    safeQuery(supabase.from("word_cards").select("id, word, active_date, definition, example_sentence").gte("active_date", new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })).order("active_date", { ascending: true }).limit(5)),
-    safeQuery(supabase.from("users").select("id, full_name, created_at").order("created_at", { ascending: false }).limit(5)),
-    safeQuery(supabase.from("users").select("id, full_name, email, role, created_at").order("created_at", { ascending: false }).limit(100)),
-    safeQuery(supabase.from("submissions").select("id", { count: "exact", head: true }).gte("date", new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }))),
+    safeQuery(adminClient.from("word_cards").select("id, word, active_date, definition, example_sentence").gte("active_date", new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' })).order("active_date", { ascending: true }).limit(5)),
+    safeQuery(adminClient.from("users").select("id, full_name, created_at").order("created_at", { ascending: false }).limit(5)),
+    safeQuery(adminClient.from("users").select("id, full_name, email, role, created_at").order("created_at", { ascending: false }).limit(100)),
+    safeQuery(adminClient.from("submissions").select("id", { count: "exact", head: true }).gte("date", new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }))),
     safeQuery(adminClient.from("ai_jobs").select("id", { count: "exact", head: true }).eq("status", "pending")),
     safeQuery(adminClient.from("ai_jobs").select("id", { count: "exact", head: true }).eq("status", "failed"))
   ]);

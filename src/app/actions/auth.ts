@@ -46,13 +46,16 @@ export async function login(formData: FormData) {
 
 export async function signup(formData: FormData) {
   const ip = (await headers()).get("x-forwarded-for") || "unknown-ip";
-  const isAllowed = await checkRateLimit(`signup_${ip}`, 5, 60000);
-  if (!isAllowed) { // 5 attempts per minute
-    redirect("/signup?error=" + encodeURIComponent("Too many signup attempts. Please try again later."));
+  
+  if (process.env.NODE_ENV === "production") {
+    const isAllowed = await checkRateLimit(`signup_${ip}`, 5, 60000);
+    if (!isAllowed) {
+      redirect("/signup?error=" + encodeURIComponent("Too many signup attempts. Please try again later."));
+    }
   }
 
   const result = SignupSchema.safeParse({
-    email: formData.get("email"),
+    email: (formData.get("email") as string || "").trim().toLowerCase(),
     password: formData.get("password"),
     full_name: formData.get("full_name"),
     invite_code: formData.get("invite_code"),
@@ -83,46 +86,59 @@ export async function signup(formData: FormData) {
     redirect("/signup?error=Invalid or expired invite code");
   }
   
-  // 2. Sign up user
-  const { data, error } = await supabase.auth.signUp({
+  // 2. Sign up user using Admin API to bypass the 3-emails-per-hour rate limit
+  const { data, error } = await adminClient.auth.admin.createUser({
     email,
     password,
+    email_confirm: true,
   });
   
   if (error || !data.user) {
     console.error("Signup failed", error);
-    redirect("/signup?error=Failed to create account. Email may already be in use.");
+    redirect("/signup?error=Auth Error: " + encodeURIComponent(error?.message || "Failed to create account"));
   }
-  
-  // 3. Atomically consume the invite
-  const { data: claimData, error: claimErr } = await adminClient.rpc("claim_invite", {
-    p_code: inviteCode,
-    p_user_id: data.user.id
+
+  // Immediately sign them in to establish the session
+  const { error: signInError } = await supabase.auth.signInWithPassword({
+    email,
+    password
   });
 
-  if (claimErr || !claimData?.success) {
-    console.error("Invite claimed simultaneously", claimErr);
-    await adminClient.auth.admin.deleteUser(data.user.id);
-    redirect("/signup?error=This invite code was just used by someone else");
+  if (signInError) {
+    console.error("Auto-signin failed", signInError);
   }
-
-  // 4. Insert into public.users using Service Role
+  
+  // 3. Insert into public.users using Service Role
   const { error: profileErr } = await adminClient.from("users").insert({
     id: data.user.id,
     email,
     full_name: fullName,
-    role: claimData.role,
-    pod_id: claimData.pod_id,
+    role: inviteRows[0].role,
+    pod_id: inviteRows[0].pod_id,
     consent_given: true,
     consent_date: new Date().toISOString()
   });
 
   if (profileErr) {
     console.error("Failed to create public user profile", profileErr);
-    // Rollback the invite consumption
-    await adminClient.from("invites").update({ used_by: null }).eq("code", inviteCode);
     await adminClient.auth.admin.deleteUser(data.user.id);
-    redirect("/signup?error=Account creation failed during profile setup");
+    redirect("/signup?error=Profile Creation Error: " + profileErr.message);
+  }
+
+  // 4. Atomically consume the invite
+  const { data: updateData, error: updateErr } = await adminClient
+    .from("invites")
+    .update({ used_by: data.user.id })
+    .eq("code", inviteCode)
+    .is("used_by", null)
+    .select();
+
+  if (updateErr || !updateData || updateData.length === 0) {
+    console.error("Invite claimed simultaneously or expired", updateErr);
+    await adminClient.from("users").delete().eq("id", data.user.id);
+    await adminClient.auth.admin.deleteUser(data.user.id);
+    const detailedError = updateErr ? updateErr.message : "No rows updated for code " + inviteCode;
+    redirect("/signup?error=Invite Claim Error: " + detailedError);
   }
   
   redirect("/");

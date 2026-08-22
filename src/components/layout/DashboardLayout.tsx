@@ -15,6 +15,7 @@ import {
   BookMarked,
   MessageSquareCheck,
   Map as MapIcon,
+  Swords,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -56,6 +57,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   } else if (pathname?.startsWith("/mentor")) {
     sidebarLinks = [
       { name: "Mentor Dashboard", href: "/mentor/dashboard", icon: LayoutDashboard },
+      { name: "Evaluations", href: "/mentor/evaluations", icon: BookOpen },
       { name: "My Pod", href: "/mentor/pod", icon: Users },
     ];
   } else {
@@ -64,6 +66,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
       { name: "Learning Path", href: "/vault/path", icon: MapIcon },
       { name: "Word Vault", href: "/vault/library", icon: BookMarked },
       { name: "Review Queue", href: "/vault/review", icon: MessageSquareCheck },
+      { name: "Championships", href: "/vault/championship", icon: Swords },
       { name: "My Pod", href: "/vault/pod", icon: Users },
       { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
     ];

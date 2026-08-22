@@ -42,13 +42,33 @@ export async function getPodDashboardData(cursor?: string): Promise<PodDashboard
   // (e.g. users cannot read public.pods directly, mentors cannot read student xp_transactions)
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    {
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+      },
+    }
   );
 
-  // Get user's pod_id
-  const { data: profile } = await adminClient.from("users").select("pod_id").eq("id", user.id).single();
+  // Get user's role and pod_id
+  const { data: profile } = await adminClient.from("users").select("role, pod_id").eq("id", user.id).single();
   
-  if (!profile || !profile.pod_id) {
+  let targetPodId = profile?.pod_id;
+
+  if (profile?.role === 'mentor' && !targetPodId) {
+    const { data: podMentors } = await adminClient.from("pod_mentors").select("pod_id").eq("mentor_id", user.id);
+    if (podMentors && podMentors.length > 0) {
+      targetPodId = podMentors[0].pod_id;
+    } else {
+      const { data: unitMentors } = await adminClient.from("unit_mentors").select("unit_id").eq("mentor_id", user.id);
+      if (unitMentors && unitMentors.length > 0) {
+        const { data: unitPods } = await adminClient.from("pods").select("id").eq("unit_id", unitMentors[0].unit_id).limit(1);
+        if (unitPods && unitPods.length > 0) targetPodId = unitPods[0].id;
+      }
+    }
+  }
+  
+  if (!targetPodId) {
     return {
       pod: null,
       mentor: null,
@@ -58,23 +78,23 @@ export async function getPodDashboardData(cursor?: string): Promise<PodDashboard
     };
   }
 
-  const podId = profile.pod_id;
-
-  // 1. Fetch Pod Info
-  const { data: pod } = await adminClient.from("pods").select("id, name, admin_id").eq("id", podId).single();
+  // Fetch pod details
+  const podId = targetPodId;
+  const { data: pod } = await adminClient.from("pods").select("id, name, admin_id, unit_id").eq("id", podId).single();
 
   // 2. Fetch Mentor
   let mentor = null;
-  const { data: mentorData } = await adminClient
-    .from("users")
-    .select("full_name, email")
-    .eq("pod_id", podId)
-    .eq("role", "mentor")
-    .limit(1)
-    .single();
+  const { data: podMentors } = await adminClient.from("pod_mentors").select("mentor_id").eq("pod_id", podId).limit(1);
+  let resolvedMentorId = podMentors?.[0]?.mentor_id;
 
-  if (mentorData) {
-    mentor = mentorData;
+  if (!resolvedMentorId && pod?.unit_id) {
+    const { data: unitMentors } = await adminClient.from("unit_mentors").select("mentor_id").eq("unit_id", pod.unit_id).limit(1);
+    resolvedMentorId = unitMentors?.[0]?.mentor_id;
+  }
+
+  if (resolvedMentorId) {
+    const { data: mentorData } = await adminClient.from("users").select("full_name, email").eq("id", resolvedMentorId).single();
+    if (mentorData) mentor = mentorData;
   }
 
   // 3. Fetch Roster
@@ -166,7 +186,12 @@ export async function setStudyBuddy(buddyId: string) {
 
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    {
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+      },
+    }
   );
 
   const { data: profile } = await adminClient.from("users").select("pod_id").eq("id", user.id).single();

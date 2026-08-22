@@ -142,3 +142,74 @@ export async function submitReview(
 
   return { success: true };
 }
+
+export async function getReceivedReviews() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const adminClient = getAdminClient();
+
+  // Fetch completed reviews where I am the reviewee
+  const { data, error } = await adminClient
+    .from('ritual_reviews')
+    .select(`
+      *,
+      reviewer:users!ritual_reviews_reviewer_id_fkey(full_name),
+      ritual:daily_rituals(
+        *,
+        word_card:word_cards(*)
+      )
+    `)
+    .eq('reviewee_id', user.id)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false });
+
+  if (error) throw error;
+  
+  // Also need to know if step 8 (Acknowledge) and step 9 (Reflection) are done for these rituals
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  const { data: myRitual } = await adminClient
+    .from('daily_rituals')
+    .select('id, status, steps:daily_ritual_steps(*)')
+    .eq('student_id', user.id)
+    .eq('ritual_date', today)
+    .maybeSingle();
+
+  const hasAcknowledged = myRitual?.steps?.some((s: any) => s.step_number === 8 && s.status === 'completed') || false;
+  const hasReflected = myRitual?.steps?.some((s: any) => s.step_number === 9 && s.status === 'completed') || false;
+
+  return { reviews: data || [], hasAcknowledged, hasReflected, ritualId: myRitual?.id };
+}
+
+export async function acknowledgeReviews(ritualId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Step 8: Acknowledge & Appreciate (+1 pt)
+  await supabase.rpc('complete_ritual_step', {
+    p_user_id: user.id,
+    p_ritual_id: ritualId,
+    p_step_number: 8,
+    p_step_type: 'ACKNOWLEDGE',
+    p_points: 1
+  });
+  return { success: true };
+}
+
+export async function reflectWithBuddy(ritualId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  // Step 9: Buddy Reflection (+2 pts)
+  await supabase.rpc('complete_ritual_step', {
+    p_user_id: user.id,
+    p_ritual_id: ritualId,
+    p_step_number: 9,
+    p_step_type: 'BUDDY_REFLECTION',
+    p_points: 2
+  });
+  return { success: true };
+}

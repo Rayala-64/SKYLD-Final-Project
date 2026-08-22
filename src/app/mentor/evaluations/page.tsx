@@ -1,48 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import { Target, CheckCircle2, ShieldAlert, ArrowRight, Video, ClipboardList } from "lucide-react";
 import Link from "next/link";
-import { submitMasterEvaluation } from "@/app/actions/championships";
+import { submitMasterEvaluation, getMentorEvaluationsData } from "@/app/actions/championships";
 
 export default function MentorEvaluationsPage() {
   const [activePod, setActivePod] = useState<any>(null);
   const [score, setScore] = useState<number>(0);
   const [feedback, setFeedback] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pods, setPods] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // In a real app, this would be fetched from the database based on the mentor's assignments
-  // Mock data for Phase 3 UI demonstration
-  const dummyPods = [
-    {
-      id: "00000000-0000-0000-0000-000000000001",
-      name: "Pod Alpha",
-      unit: "Phoenix Unit",
-      challenge_title: "Innovation & Technology",
-      video_url: "https://www.w3schools.com/html/mov_bbb.mp4",
-      status: "PENDING"
-    },
-    {
-      id: "00000000-0000-0000-0000-000000000002",
-      name: "Pod Bravo",
-      unit: "Phoenix Unit",
-      challenge_title: "Innovation & Technology",
-      video_url: null,
-      status: "WAITING_FOR_SUBMISSION"
-    }
-  ];
+  useEffect(() => {
+    getMentorEvaluationsData().then(data => {
+      setPods(data);
+      setIsLoading(false);
+    });
+  }, []);
 
   const handleSubmit = async () => {
     if (score === 0 || !feedback) return alert("Please provide a score and feedback.");
     setIsSubmitting(true);
     try {
-      // Hardcoded week ID for demo
-      await submitMasterEvaluation("00000000-0000-0000-0000-000000000001", activePod.id, score, feedback);
+      await submitMasterEvaluation(activePod.championship_week_id, activePod.id, score, feedback);
       
       // Mark as completed locally
+      setPods(pods.map(p => p.id === activePod.id ? { ...p, status: 'COMPLETED' } : p));
       
       setActivePod(null);
       setScore(0);
@@ -69,8 +57,19 @@ export default function MentorEvaluationsPage() {
         </div>
 
         {!activePod ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {dummyPods.map((pod) => (
+          isLoading ? (
+            <div className="flex justify-center py-12">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-500"></div>
+            </div>
+          ) : pods.length === 0 ? (
+            <PremiumCard className="p-12 text-center">
+              <ClipboardList className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+              <h3 className="text-xl font-bold font-heading mb-2">No Pods to Evaluate</h3>
+              <p className="text-muted-foreground">You are not assigned to any pods, or there are no active championships.</p>
+            </PremiumCard>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pods.map((pod) => (
               <PremiumCard key={pod.id} className={`p-6 ${pod.status === 'COMPLETED' ? 'opacity-70 grayscale' : ''}`}>
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -104,6 +103,7 @@ export default function MentorEvaluationsPage() {
               </PremiumCard>
             ))}
           </div>
+          )
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left: Video */}
