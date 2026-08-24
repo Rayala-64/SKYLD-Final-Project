@@ -206,7 +206,7 @@ export async function submitDailyMissionV2(
     }
   }
 
-  // 2. Assign Peer Review
+  // 2. Assign Cross-Pod Peer Review (External across Pods)
   let podId = buddyPair?.pod_id;
   if (!podId) {
     const { data: profile } = await adminClient.from('users').select('pod_id').eq('id', userId).single();
@@ -215,28 +215,34 @@ export async function submitDailyMissionV2(
 
   const buddyId = buddyPair ? (buddyPair.user1_id === userId ? buddyPair.user2_id : buddyPair.user1_id) : '00000000-0000-0000-0000-000000000000';
   
-  // Find candidates in pod first
+  // Cross-Pod Pivot Algorithm:
+  // Priority 1: Pick a student from a DIFFERENT Pod (unbiased external grading)
   let candidates: { id: string }[] = [];
   if (podId) {
-    const { data: podPeers } = await adminClient
+    const { data: crossPodPeers } = await adminClient
       .from('users')
       .select('id')
-      .eq('pod_id', podId)
       .eq('role', 'student')
+      .neq('pod_id', podId)
       .neq('id', userId)
       .neq('id', buddyId);
-    if (podPeers && podPeers.length > 0) candidates = podPeers;
+
+    if (crossPodPeers && crossPodPeers.length > 0) {
+      candidates = crossPodPeers;
+    }
   }
 
-  // If no other peer in same pod (e.g. 2-person pod), pick any other student in batch
+  // Priority 2: Fallback to any other student in cohort if only 1 Pod exists
   if (candidates.length === 0) {
-    const { data: batchPeers } = await adminClient
+    const { data: cohortPeers } = await adminClient
       .from('users')
       .select('id')
       .eq('role', 'student')
       .neq('id', userId)
       .neq('id', buddyId);
-    if (batchPeers && batchPeers.length > 0) candidates = batchPeers;
+    if (cohortPeers && cohortPeers.length > 0) {
+      candidates = cohortPeers;
+    }
   }
 
   if (candidates.length > 0) {
@@ -257,7 +263,7 @@ export async function submitDailyMissionV2(
         review_type: 'PEER',
         status: 'pending'
       });
-      if (peerErr) console.error("Failed to assign peer review:", peerErr);
+      if (peerErr) console.error("Failed to assign cross-pod peer review:", peerErr);
     }
   }
 

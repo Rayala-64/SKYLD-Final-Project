@@ -149,49 +149,107 @@ export default function ReviewPage() {
                 {/* Right Side: Feedback Form */}
                 <div className="space-y-6">
                   <PremiumCard className="p-6 glass-card">
+                    <div className="flex items-center gap-2 mb-2">
+                      {activeReview.review_type === 'BUDDY' ? (
+                        <span className="text-xs font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 px-3 py-1 rounded-full border border-emerald-500/20">
+                          🤝 In-Pod Buddy Review
+                        </span>
+                      ) : (
+                        <span className="text-xs font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 px-3 py-1 rounded-full border border-blue-500/20">
+                          🌐 Cross-Pod External Review
+                        </span>
+                      )}
+                    </div>
+                    
                     <h3 className="text-xl font-bold font-heading mb-6 flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5 text-secondary" /> Provide Feedback
+                      <MessageSquare className="w-5 h-5 text-secondary" />
+                      {activeReview.review_type === 'BUDDY' ? "Buddy Coaching & Growth" : "Objective Audience Evaluation"}
                     </h3>
                     
                     <div className="space-y-6">
-                      <div>
-                        <label className="block text-sm font-bold mb-2">What did they do well?</label>
-                        <Textarea 
-                          placeholder="Highlight their strengths (e.g. good pronunciation, strong eye contact)..."
-                          className="min-h-[100px] resize-none bg-background/50 border-primary/20"
-                          value={strength}
-                          onChange={e => setStrength(e.target.value)}
-                        />
-                      </div>
-                      
-                      <div>
-                        <label className="block text-sm font-bold mb-2">What could they improve?</label>
-                        <Textarea 
-                          placeholder="Provide constructive feedback for next time..."
-                          className="min-h-[100px] resize-none bg-background/50 border-primary/20"
-                          value={improvement}
-                          onChange={e => setImprovement(e.target.value)}
-                        />
-                      </div>
+                      {activeReview.review_type === 'BUDDY' ? (
+                        <>
+                          <div>
+                            <label className="block text-sm font-bold mb-2">1. What did your buddy do well today?</label>
+                            <Textarea 
+                              placeholder="Highlight their positive effort, storytelling, or confidence..."
+                              className="min-h-[90px] resize-none bg-background/50 border-primary/20"
+                              value={strength}
+                              onChange={e => setStrength(e.target.value)}
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-bold mb-2">2. One challenge for tomorrow's ritual:</label>
+                            <Textarea 
+                              placeholder="Suggest one concrete goal for your buddy tomorrow..."
+                              className="min-h-[90px] resize-none bg-background/50 border-primary/20"
+                              value={improvement}
+                              onChange={e => setImprovement(e.target.value)}
+                            />
+                          </div>
 
-                      <div>
-                        <label className="block text-sm font-bold mb-2">Communication Score (1-10)</label>
-                        <div className="flex gap-2 flex-wrap">
-                          {[1,2,3,4,5,6,7,8,9,10].map(n => (
-                            <button
-                              key={n}
-                              onClick={() => setScore(n)}
-                              className={`w-10 h-10 rounded-full font-bold transition-all ${
-                                score === n 
-                                  ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(var(--primary),0.5)]' 
-                                  : 'bg-muted text-muted-foreground hover:bg-primary/20 hover:text-primary'
-                              }`}
-                            >
-                              {n}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                          <div>
+                            <label className="block text-sm font-bold mb-2">Daily Effort & Consistency Score (1-10)</label>
+                            <div className="flex gap-2 flex-wrap">
+                              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                                <button
+                                  key={n}
+                                  onClick={() => setScore(n)}
+                                  className={`w-10 h-10 rounded-full font-bold transition-all ${
+                                    score === n 
+                                      ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.5)]' 
+                                      : 'bg-muted text-muted-foreground hover:bg-emerald-500/20 hover:text-emerald-400'
+                                  }`}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div>
+                            <label className="block text-sm font-bold mb-2">1. Delivery & Vocabulary Strengths:</label>
+                            <Textarea 
+                              placeholder="Evaluate their word precision, story clarity, and professional tone..."
+                              className="min-h-[90px] resize-none bg-background/50 border-primary/20"
+                              value={strength}
+                              onChange={e => setStrength(e.target.value)}
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-sm font-bold mb-2">2. Corporate Placement / Interview Polish Tip:</label>
+                            <Textarea 
+                              placeholder="What is the #1 thing to improve for executive-level presentations?..."
+                              className="min-h-[90px] resize-none bg-background/50 border-primary/20"
+                              value={improvement}
+                              onChange={e => setImprovement(e.target.value)}
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-bold mb-2">Professional Benchmark Score (1-10)</label>
+                            <div className="flex gap-2 flex-wrap">
+                              {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                                <button
+                                  key={n}
+                                  onClick={() => setScore(n)}
+                                  className={`w-10 h-10 rounded-full font-bold transition-all ${
+                                    score === n 
+                                      ? 'bg-blue-500 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' 
+                                      : 'bg-muted text-muted-foreground hover:bg-blue-500/20 hover:text-blue-400'
+                                  }`}
+                                >
+                                  {n}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </>
+                      )}
 
                       <div className="pt-6 border-t border-border/50 flex gap-4">
                         <PremiumButton variant="outline" className="flex-1" onClick={() => setActiveReview(null)}>

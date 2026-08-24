@@ -75,6 +75,9 @@ export default function MentorEvaluationsPage() {
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{pod.unit}</span>
                     <h3 className="text-xl font-bold font-heading">{pod.name}</h3>
+                    <p className="text-xs text-amber-400 font-medium mt-0.5">
+                      👑 Leader: {pod.leader_name}
+                    </p>
                   </div>
                   {pod.status === 'PENDING' && (
                     <span className="bg-warning/20 text-warning text-xs font-bold px-2 py-1 rounded-full uppercase">Needs Review</span>
@@ -110,7 +113,12 @@ export default function MentorEvaluationsPage() {
             <div className="space-y-6">
               <PremiumCard className="p-6 border-l-4 border-l-indigo-500">
                 <div className="flex justify-between items-center mb-4">
-                  <h3 className="text-xl font-bold font-heading">{activePod.name} Submission</h3>
+                  <div>
+                    <h3 className="text-xl font-bold font-heading">{activePod.name} Presentation</h3>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      👑 Submitted by Pod Leader: <span className="text-foreground font-semibold">{activePod.leader_name}</span>
+                    </p>
+                  </div>
                   <span className="text-xs font-bold uppercase tracking-wider bg-indigo-500/20 text-indigo-500 px-3 py-1 rounded-full">
                     MASTER EVALUATION
                   </span>

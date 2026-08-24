@@ -1,11 +1,32 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { unstable_noStore as noStore } from "next/cache";
 
 export async function submitPodChallenge(weeklyChallengeId: string, podId: string, videoUrl: string, description: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
+
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  );
+
+  // Check if pod has a designated leader
+  const { data: pod } = await adminClient
+    .from('pods')
+    .select('id, name, admin_id')
+    .eq('id', podId)
+    .single();
+
+  if (pod && pod.admin_id && pod.admin_id !== user.id) {
+    let leaderName = "Pod Leader";
+    const { data: leaderUser } = await adminClient.from('users').select('full_name').eq('id', pod.admin_id).maybeSingle();
+    if (leaderUser?.full_name) leaderName = leaderUser.full_name;
+    throw new Error(`Only your designated Pod Leader (${leaderName}) is authorized to submit the official weekly challenge video.`);
+  }
 
   const { error } = await supabase
     .from('pod_challenge_submissions')
@@ -95,11 +116,6 @@ export async function submitPeerEvaluationPhase3(peerEvaluationId: string, score
 
   if (error) throw new Error(error.message);
 
-  // We need to write the event to championship_score_events.
-  // Because it runs server-side with user auth, we can just do a direct insert if RLS allows, 
-  // or use a secure RPC if RLS blocks students from inserting score events directly.
-  // Assuming we need a secure RPC for inserting score events to prevent students from faking scores.
-  
   const { error: rpcError } = await supabase.rpc('award_peer_evaluation_points', {
     p_eval_id: peerEvaluationId,
     p_score: evalData.score
@@ -131,22 +147,38 @@ export async function getPodChallengeStatus(weeklyChallengeId: string) {
   const { data: profile } = await adminClient.from('users').select('pod_id').eq('id', user.id).single();
   if (!profile || !profile.pod_id) return null;
 
+  const { data: pod } = await adminClient
+    .from('pods')
+    .select('id, name, admin_id')
+    .eq('id', profile.pod_id)
+    .single();
+
+  let leaderName = "Pod Leader";
+  if (pod?.admin_id) {
+    const { data: leaderUser } = await adminClient.from('users').select('full_name').eq('id', pod.admin_id).maybeSingle();
+    if (leaderUser?.full_name) leaderName = leaderUser.full_name;
+  }
+
   const { data: submission } = await adminClient
     .from('pod_challenge_submissions')
-    .select('id, status')
+    .select('id, status, video_url, description, submitted_by, created_at')
     .eq('weekly_challenge_id', weeklyChallengeId)
     .eq('pod_id', profile.pod_id)
     .maybeSingle();
 
+  const isLeader = pod?.admin_id ? pod.admin_id === user.id : true;
+
   return {
     podId: profile.pod_id,
+    podName: pod?.name || "Your Pod",
     hasSubmitted: !!submission,
-    status: submission?.status || null
+    status: submission?.status || null,
+    isLeader,
+    leaderName,
+    leaderId: pod?.admin_id || null,
+    submission: submission || null
   };
 }
-
-import { createClient as createAdminClient } from "@supabase/supabase-js";
-import { unstable_noStore as noStore } from "next/cache";
 
 export async function getMentorEvaluationsData() {
   noStore();
@@ -185,11 +217,20 @@ export async function getMentorEvaluationsData() {
     .select(`
       id,
       name,
+      admin_id,
       units ( name )
     `)
     .in("id", allPodIds);
 
   if (!pods) return [];
+
+  // Fetch leader names
+  const leaderIds = pods.map((p: any) => p.admin_id).filter(Boolean);
+  let leaderMap = new Map<string, string>();
+  if (leaderIds.length > 0) {
+    const { data: leaders } = await adminClient.from('users').select('id, full_name').in('id', leaderIds);
+    leaderMap = new Map(leaders?.map((l: any) => [l.id, l.full_name]) || []);
+  }
 
   // Fetch active challenge
   const { data: activeChallenge } = await adminClient
@@ -205,11 +246,11 @@ export async function getMentorEvaluationsData() {
   // Fetch submissions for this challenge from the mentor's pods
   const { data: submissions } = await adminClient
     .from('pod_challenge_submissions')
-    .select('pod_id, video_url, description')
+    .select('id, pod_id, video_url, description, submitted_by, created_at')
     .eq('weekly_challenge_id', activeChallenge.id)
     .in('pod_id', allPodIds);
 
-  const submissionsMap = new Map(submissions?.map((s: any) => [s.pod_id, s]) || []);
+  const submissionsMap = new Map<string, any>(submissions?.map((s: any) => [s.pod_id, s]) || []);
 
   // Fetch master evaluations by this mentor for this week
   const { data: evaluations } = await adminClient
@@ -231,6 +272,7 @@ export async function getMentorEvaluationsData() {
     return {
       id: p.id,
       name: p.name,
+      leader_name: (p.admin_id && leaderMap.get(p.admin_id)) || "Pod Leader",
       unit: p.units?.name || "No Unit",
       challenge_title: activeChallenge.title,
       video_url: sub ? sub.video_url : null,

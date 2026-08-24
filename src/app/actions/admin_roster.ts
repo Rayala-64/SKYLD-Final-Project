@@ -137,24 +137,40 @@ export async function assignMentor(mentorId: string, orgType: 'unit' | 'pod', or
   try {
     await verifyAdmin();
     const adminClient = getAdminClient();
+
     const table = orgType === 'unit' ? 'unit_mentors' : 'pod_mentors';
-    const idField = orgType === 'unit' ? 'unit_id' : 'pod_id';
+    const field = orgType === 'unit' ? 'unit_id' : 'pod_id';
 
     if (action === 'add') {
-      const { error } = await adminClient.from(table).insert({ mentor_id: mentorId, [idField]: orgId });
-      if (error) {
-        if (error.code === '23505') return { error: "Mentor is already assigned to this " + orgType };
-        return { error: error.message };
-      }
+      const { error } = await adminClient.from(table).insert({ [field]: orgId, mentor_id: mentorId });
+      if (error && error.code !== '23505') return { error: error.message }; // Ignore duplicate
     } else {
-      const { error } = await adminClient.from(table).delete().eq('mentor_id', mentorId).eq(idField, orgId);
+      const { error } = await adminClient.from(table).delete().match({ [field]: orgId, mentor_id: mentorId });
       if (error) return { error: error.message };
     }
 
     revalidatePath('/admin/roster');
     return { success: true };
-  } catch (err: any) {
-    return { error: err.message || "Failed to assign mentor" };
+  } catch (e: any) {
+    return { error: e.message };
+  }
+}
+
+export async function assignPodLeader(podId: string, studentId: string | null) {
+  try {
+    await verifyAdmin();
+    const adminClient = getAdminClient();
+
+    const { error } = await adminClient
+      .from('pods')
+      .update({ admin_id: studentId || null })
+      .eq('id', podId);
+
+    if (error) return { error: error.message };
+    revalidatePath('/admin/roster');
+    return { success: true };
+  } catch (e: any) {
+    return { error: e.message };
   }
 }
 

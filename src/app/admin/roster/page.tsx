@@ -4,8 +4,8 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import { useState, useEffect } from "react";
-import { getRosterData, createOrganization, assignStudent, createBuddyPair, assignMentor, deleteOrganization } from "@/app/actions/admin_roster";
-import { Loader2, Users, ArrowRight, UserPlus, Trash2 } from "lucide-react";
+import { getRosterData, createOrganization, assignStudent, createBuddyPair, assignMentor, deleteOrganization, assignPodLeader } from "@/app/actions/admin_roster";
+import { Loader2, Users, ArrowRight, UserPlus, Trash2, Crown } from "lucide-react";
 
 export default function RosterPage() {
   const [data, setData] = useState<any>(null);
@@ -55,6 +55,17 @@ export default function RosterPage() {
       setNewPodName("");
       setNewUnitBatch(""); 
       setNewPodUnit("");
+      await loadData();
+    } catch (e: any) {
+      alert("Unexpected error: " + e.message);
+    }
+  };
+
+  const handleSetPodLeader = async (podId: string, studentId: string) => {
+    try {
+      const res = await assignPodLeader(podId, studentId || null);
+      if (res?.error) return alert("Error: " + res.error);
+      alert("✅ Pod Leader updated successfully!");
       await loadData();
     } catch (e: any) {
       alert("Unexpected error: " + e.message);
@@ -189,20 +200,22 @@ export default function RosterPage() {
               <h2 className="text-lg font-bold mb-4 border-b border-border/50 pb-2">Organization Tree</h2>
               {data?.batches.map((batch: any) => (
                 <div key={batch.id} className="mb-4">
-                  <div className="font-bold text-primary flex items-center gap-2">
-                    {batch.name}
+                  <div className="font-bold text-primary flex items-center justify-between">
+                    <span>{batch.name}</span>
                     <button onClick={() => handleDeleteOrg('batch', batch.id, batch.name)} className="text-red-500/50 hover:text-red-500 cursor-pointer" title="Delete Batch"><Trash2 className="w-4 h-4" /></button>
                   </div>
                   {data?.units.filter((u: any) => u.batch_id === batch.id).map((unit: any) => (
                     <div key={unit.id} className="ml-4 mt-2 border-l-2 border-border/50 pl-2">
-                      <div className="font-semibold flex items-center gap-2">
-                        {unit.name}
+                      <div className="font-semibold flex items-center justify-between">
+                        <span>{unit.name}</span>
                         <button onClick={() => handleDeleteOrg('unit', unit.id, unit.name)} className="text-red-500/50 hover:text-red-500 cursor-pointer" title="Delete Unit"><Trash2 className="w-3.5 h-3.5" /></button>
                       </div>
                       {data?.pods.filter((p: any) => p.unit_id === unit.id).map((pod: any) => (
-                        <div key={pod.id} className="ml-4 mt-1 text-sm text-muted-foreground flex items-center gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
-                          {pod.name}
+                        <div key={pod.id} className="ml-4 mt-1 text-sm text-muted-foreground flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary/50" />
+                            <span>{pod.name}</span>
+                          </div>
                           <button onClick={() => handleDeleteOrg('pod', pod.id, pod.name)} className="text-red-500/50 hover:text-red-500 ml-auto cursor-pointer" title="Delete Pod"><Trash2 className="w-3 h-3" /></button>
                         </div>
                       ))}
@@ -216,9 +229,11 @@ export default function RosterPage() {
                 <div className="mt-4 pt-3 border-t border-border/50">
                   <div className="font-semibold text-xs uppercase tracking-wider text-amber-400 mb-2">Unassigned / Floating Pods</div>
                   {data?.pods?.filter((p: any) => !p.unit_id || !data?.units?.some((u: any) => u.id === p.unit_id)).map((pod: any) => (
-                    <div key={pod.id} className="text-sm text-muted-foreground flex items-center gap-2 mb-1 pl-2">
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-                      <span>{pod.name}</span>
+                    <div key={pod.id} className="text-sm text-muted-foreground flex items-center justify-between mb-1 pl-2">
+                      <div className="flex items-center gap-2">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                        <span>{pod.name}</span>
+                      </div>
                       <button onClick={() => handleDeleteOrg('pod', pod.id, pod.name)} className="text-red-500/50 hover:text-red-500 ml-auto cursor-pointer" title="Delete Pod"><Trash2 className="w-3 h-3" /></button>
                     </div>
                   ))}
@@ -229,6 +244,69 @@ export default function RosterPage() {
 
           {/* Manage Students */}
           <div className="md:col-span-2 space-y-6">
+
+            {/* Standalone Pod Leaders Management Card */}
+            <PremiumCard className="p-6">
+              <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-2">
+                <div className="flex items-center gap-2">
+                  <Crown className="w-5 h-5 text-amber-400" />
+                  <h2 className="text-lg font-bold">Pod Leaders Management</h2>
+                </div>
+                <span className="text-xs text-muted-foreground">Elected single uploader for 16-min weekly challenge</span>
+              </div>
+              
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm text-left">
+                  <thead className="text-xs text-muted-foreground uppercase bg-muted/50">
+                    <tr>
+                      <th className="px-4 py-3 rounded-tl-lg">Pod</th>
+                      <th className="px-4 py-3">Unit / Batch</th>
+                      <th className="px-4 py-3 rounded-tr-lg">Designated Pod Leader</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data?.pods?.map((pod: any) => {
+                      const leader = data?.students.find((s: any) => s.id === pod.admin_id);
+                      const unit = data?.units.find((u: any) => u.id === pod.unit_id);
+                      const batch = data?.batches.find((b: any) => b.id === unit?.batch_id);
+                      const podStudents = data?.students.filter((s: any) => s.pod_id === pod.id);
+
+                      return (
+                        <tr key={pod.id} className="border-b border-border/50 hover:bg-muted/20">
+                          <td className="px-4 py-3 font-semibold flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-primary" />
+                            {pod.name}
+                          </td>
+                          <td className="px-4 py-3 text-xs text-muted-foreground">
+                            {unit?.name || "No Unit"} {batch ? `(${batch.name})` : ""}
+                          </td>
+                          <td className="px-4 py-3">
+                            <select
+                              value={pod.admin_id || ""}
+                              onChange={(e) => handleSetPodLeader(pod.id, e.target.value)}
+                              className="bg-card text-foreground border border-border/60 rounded-lg px-2.5 py-1.5 text-xs w-full max-w-xs focus:ring-2 focus:ring-primary/50 outline-none"
+                            >
+                              <option value="">-- No Leader Assigned --</option>
+                              {podStudents.map((s: any) => (
+                                <option key={s.id} value={s.id}>
+                                  👑 {s.full_name} ({s.email})
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {(!data?.pods || data.pods.length === 0) && (
+                      <tr>
+                        <td colSpan={3} className="px-4 py-4 text-center text-muted-foreground">No pods created yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </PremiumCard>
+
             <PremiumCard className="p-6">
               <h2 className="text-lg font-bold mb-6 border-b border-border/50 pb-2">Student Assignments</h2>
               

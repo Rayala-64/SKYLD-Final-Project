@@ -18,6 +18,10 @@ export default function WeeklyChallengePage() {
   
   const [challenge, setChallenge] = useState<any>(null);
   const [podId, setPodId] = useState<string | null>(null);
+  const [podName, setPodName] = useState<string>("Your Pod");
+  const [isLeader, setIsLeader] = useState<boolean>(true);
+  const [leaderName, setLeaderName] = useState<string>("Pod Leader");
+  const [submission, setSubmission] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -30,7 +34,11 @@ export default function WeeklyChallengePage() {
           const status = await getPodChallengeStatus(activeChallenge.id);
           if (status) {
             setPodId(status.podId);
+            setPodName(status.podName || "Your Pod");
             setIsSubmitted(status.hasSubmitted);
+            setIsLeader(status.isLeader);
+            setLeaderName(status.leaderName || "Pod Leader");
+            setSubmission(status.submission);
           }
         }
       } catch (e) {
@@ -48,6 +56,7 @@ export default function WeeklyChallengePage() {
     try {
       await submitPodChallenge(challenge.id, podId, videoUrl, description);
       setIsSubmitted(true);
+      setSubmission({ video_url: videoUrl, description });
     } catch (e: any) {
       alert(e.message);
     } finally {
@@ -68,7 +77,7 @@ export default function WeeklyChallengePage() {
           </div>
           <div>
             <h1 className="text-3xl font-bold font-heading">Weekly Pod Challenge</h1>
-            <p className="text-muted-foreground">Collaborate with your Pod and submit your presentation for up to 10 points.</p>
+            <p className="text-muted-foreground">Collaborate with your 8-member Pod and submit your 16-minute presentation.</p>
           </div>
         </div>
 
@@ -86,14 +95,25 @@ export default function WeeklyChallengePage() {
             </PremiumButton>
           </PremiumCard>
         ) : isSubmitted ? (
-          <PremiumCard className="p-12 text-center shadow-xl glass-card">
-            <CheckCircle2 className="w-16 h-16 text-success mx-auto mb-4" />
-            <h2 className="text-2xl font-bold mb-2">Submission Received!</h2>
-            <p className="text-muted-foreground mb-8">Your Pod's collaborative challenge has been submitted for evaluation.</p>
-            <PremiumButton asChild>
-                <Link href="/vault/dashboard">Return to Dashboard</Link>
-            </PremiumButton>
-          </PremiumCard>
+          <div className="space-y-8">
+            <PremiumCard className="p-8 text-center shadow-xl glass-card border border-emerald-500/30">
+              <CheckCircle2 className="w-16 h-16 text-emerald-400 mx-auto mb-3" />
+              <h2 className="text-2xl font-bold mb-1">Weekly Challenge Submitted!</h2>
+              <p className="text-muted-foreground mb-6">
+                Your Pod's 16-minute collaborative presentation is safely uploaded and awaiting Mentor evaluation.
+              </p>
+              
+              {submission?.video_url && (
+                <div className="max-w-2xl mx-auto mb-6 aspect-video bg-black rounded-2xl overflow-hidden border border-border/50 shadow-2xl">
+                  <video src={submission.video_url} controls className="w-full h-full object-cover" />
+                </div>
+              )}
+
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-xs font-semibold text-primary">
+                👑 Submitted on behalf of {podName} by {leaderName}
+              </div>
+            </PremiumCard>
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             <div className="space-y-6">
@@ -121,47 +141,78 @@ export default function WeeklyChallengePage() {
                 </div>
               </PremiumCard>
 
-              <PremiumCard className="p-6">
-                <h3 className="text-lg font-bold mb-4">Submission Details</h3>
-                <textarea 
-                  className="w-full bg-background/50 border border-border rounded-xl p-4 text-sm min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
-                  placeholder="Add any notes for the evaluators..."
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                />
-              </PremiumCard>
+              {isLeader && (
+                <PremiumCard className="p-6">
+                  <h3 className="text-lg font-bold mb-4">Submission Notes</h3>
+                  <textarea 
+                    className="w-full bg-background/50 border border-border rounded-xl p-4 text-sm min-h-[100px] resize-none focus:outline-none focus:ring-2 focus:ring-primary/50"
+                    placeholder="Add team member names, topic breakdown, or notes for the Mentor..."
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                  />
+                </PremiumCard>
+              )}
             </div>
 
             <div className="space-y-6">
-              <PremiumCard className="p-6 glass-card">
-                <h3 className="text-xl font-bold mb-6 flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" /> Record Presentation
-                </h3>
-                
-                {videoUrl ? (
-                  <div className="space-y-6">
-                    <div className="aspect-video bg-black rounded-xl overflow-hidden border border-border/50">
-                      <video src={videoUrl} controls className="w-full h-full object-cover" />
-                    </div>
-                    
-                    <div className="flex gap-4">
-                      <PremiumButton variant="outline" className="flex-1" onClick={() => setVideoUrl(null)}>
-                        Retake Video
-                      </PremiumButton>
-                      <PremiumButton className="flex-1 bg-purple-500 hover:bg-purple-600 text-white" onClick={handleSubmit} disabled={isSubmitting}>
-                        {isSubmitting ? "Submitting..." : "Submit to Judges"}
-                      </PremiumButton>
-                    </div>
+              {isLeader ? (
+                <PremiumCard className="p-6 glass-card border border-primary/30">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-xs font-bold uppercase tracking-wider bg-primary/20 text-primary px-3 py-1 rounded-full border border-primary/30">
+                      👑 Pod Leader Uploader
+                    </span>
                   </div>
-                ) : (
-                  <div className="mt-4">
-                    <VideoRecorder 
-                      studentId="pod-submission" 
-                      onUploadSuccess={(url) => setVideoUrl(url)} 
-                    />
+                  <h3 className="text-xl font-bold mb-2 flex items-center gap-2">
+                    <Users className="w-5 h-5 text-primary" /> Upload 16-Min Presentation
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-6">
+                    As the designated Pod Leader for <strong>{podName}</strong>, upload your team's compiled 16-minute video presentation.
+                  </p>
+                  
+                  {videoUrl ? (
+                    <div className="space-y-6">
+                      <div className="aspect-video bg-black rounded-xl overflow-hidden border border-border/50">
+                        <video src={videoUrl} controls className="w-full h-full object-cover" />
+                      </div>
+                      
+                      <div className="flex gap-4">
+                        <PremiumButton variant="outline" className="flex-1" onClick={() => setVideoUrl(null)}>
+                          Retake / Change Video
+                        </PremiumButton>
+                        <PremiumButton className="flex-1 bg-purple-500 hover:bg-purple-600 text-white" onClick={handleSubmit} disabled={isSubmitting}>
+                          {isSubmitting ? "Submitting..." : "Submit to Mentor"}
+                        </PremiumButton>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-4">
+                      <VideoRecorder 
+                        studentId="pod-submission" 
+                        onUploadSuccess={(url) => setVideoUrl(url)} 
+                      />
+                    </div>
+                  )}
+                </PremiumCard>
+              ) : (
+                <PremiumCard className="p-8 glass-card border border-amber-500/20 text-center space-y-4">
+                  <div className="w-16 h-16 bg-amber-500/10 rounded-2xl flex items-center justify-center text-amber-400 mx-auto">
+                    <Users className="w-8 h-8" />
                   </div>
-                )}
-              </PremiumCard>
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-amber-400 bg-amber-500/10 px-3 py-1 rounded-full border border-amber-500/20">
+                      Team Collaboration Mode
+                    </span>
+                    <h3 className="text-xl font-bold mt-3">Designated Pod Leader</h3>
+                    <p className="text-lg font-semibold text-primary mt-1">👑 {leaderName}</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground leading-relaxed max-w-md mx-auto">
+                    Each member of <strong>{podName}</strong> presents a 2-minute section. Your elected Pod Leader ({leaderName}) is authorized to compile and submit the final 16-minute video.
+                  </p>
+                  <div className="pt-2 text-xs text-muted-foreground border-t border-border/40">
+                    Once uploaded by {leaderName}, you will be able to preview the team video and mentor score here.
+                  </div>
+                </PremiumCard>
+              )}
             </div>
           </div>
         )}
