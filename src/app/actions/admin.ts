@@ -42,7 +42,7 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     process.env.SUPABASE_SERVICE_ROLE_KEY || ""
   );
 
-  const [studentsRes, podsRes, wordsRes, invitesRes, submissionsRes, upcomingRes, usersRecentRes, allUsersRes, submissionsTodayRes, pendingAiRes, failedAiRes] = await Promise.all([
+  const [studentsRes, podsRes, wordsRes, invitesRes, submissionsRes, upcomingRes, usersRecentRes, allUsersRes, submissionsTodayRes, pendingAiRes, failedAiRes, reviewsRes] = await Promise.all([
     safeQuery(adminClient.from("users").select("id", { count: "exact", head: true }).eq("role", "student")),
     safeQuery(adminClient.from("pods").select("id, name", { count: "exact" })),
     safeQuery(adminClient.from("submissions").select("id", { count: "exact", head: true }).eq("status", "submitted")),
@@ -65,7 +65,16 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     safeQuery(adminClient.from("users").select("id, full_name, email, role, created_at").order("created_at", { ascending: false }).limit(100)),
     safeQuery(adminClient.from("submissions").select("id", { count: "exact", head: true }).gte("date", new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' }))),
     safeQuery(adminClient.from("ai_jobs").select("id", { count: "exact", head: true }).eq("status", "pending")),
-    safeQuery(adminClient.from("ai_jobs").select("id", { count: "exact", head: true }).eq("status", "failed"))
+    safeQuery(adminClient.from("ai_jobs").select("id", { count: "exact", head: true }).eq("status", "failed")),
+    safeQuery(adminClient.from("ritual_reviews").select(`
+      id,
+      review_type,
+      status,
+      created_at,
+      reviewer:users!ritual_reviews_reviewer_id_fkey(full_name, email),
+      reviewee:users!ritual_reviews_reviewee_id_fkey(full_name, email, pod_id),
+      ritual:daily_rituals(id, status, word_card:word_cards(word))
+    `).order("created_at", { ascending: false }).limit(50))
   ]);
 
   const recentReflections = (submissionsRes.data || []).map((sub: any) => ({
@@ -105,6 +114,44 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     name: p.name || 'Unnamed Pod'
   }));
 
+  const podsMap = new Map<string, string>();
+  pods.forEach((p: { id: string; name: string }) => podsMap.set(p.id, p.name));
+
+  // Build Live Review Queue Tracker
+  const trackerMap = new Map<string, any>();
+  for (const r of (reviewsRes.data || [])) {
+    const key = r.ritual?.id || `${r.reviewee?.email}_${r.created_at}`;
+    if (!trackerMap.has(key)) {
+      trackerMap.set(key, {
+        ritualId: r.ritual?.id || r.id,
+        studentName: r.reviewee?.full_name || "Unknown",
+        studentEmail: r.reviewee?.email || "",
+        podName: podsMap.get(r.reviewee?.pod_id) || "Pod",
+        word: r.ritual?.word_card?.word || "Daily Mission",
+        buddyReviewer: null,
+        peerReviewer: null,
+        submittedAt: new Date(r.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+      });
+    }
+
+    const item = trackerMap.get(key);
+    if (r.review_type === 'BUDDY') {
+      item.buddyReviewer = {
+        name: r.reviewer?.full_name || "Buddy",
+        email: r.reviewer?.email || "",
+        status: r.status
+      };
+    } else if (r.review_type === 'PEER') {
+      item.peerReviewer = {
+        name: r.reviewer?.full_name || "Peer",
+        email: r.reviewer?.email || "",
+        status: r.status
+      };
+    }
+  }
+
+  const reviewTracker = Array.from(trackerMap.values());
+
   const totalStudents = studentsRes.count || 0;
   const submissionsToday = submissionsTodayRes.count || 0;
   const avgCompletionRate = totalStudents > 0 ? Math.round((submissionsToday / totalStudents) * 100) : 0;
@@ -123,7 +170,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     upcomingWords,
     recentActivity,
     allUsers,
-    pods
+    pods,
+    reviewTracker
   };
 }
 

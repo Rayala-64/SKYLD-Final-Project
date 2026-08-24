@@ -40,4 +40,14 @@ export interface AdminDashboardData {
     id: string;
     name: string;
   }>;
+  reviewTracker?: Array<{
+    ritualId: string;
+    studentName: string;
+    studentEmail: string;
+    podName: string;
+    word: string;
+    buddyReviewer: { name: string; email: string; status: string } | null;
+    peerReviewer: { name: string; email: string; status: string } | null;
+    submittedAt: string;
+  }>;
 }

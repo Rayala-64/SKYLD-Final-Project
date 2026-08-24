@@ -3,13 +3,12 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
-import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, BookOpen, Plus, Loader2, Edit2, Trash2 } from "lucide-react";
+import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, BookOpen, Plus, Loader2, Edit2, Trash2, Trophy, CheckCircle2, Clock, Eye } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminDashboardData, deleteWordCard, generateInviteCode } from "@/app/actions/admin";
 import { launchGlobalWeeklyChallenge } from "@/app/actions/championship_admin";
 import type { AdminDashboardData } from "@/types/admin";
-import { Trophy } from "lucide-react";
 
 export default function AdminDashboard() {
   const [activeTab, setActiveTab] = useState("overview");
@@ -288,6 +287,96 @@ export default function AdminDashboard() {
                 </div>
               </PremiumCard>
             </div>
+            
+            <PremiumCard className="p-6">
+              <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-primary" />
+                  <div>
+                    <h2 className="text-xl font-bold">Live Review Queue Tracker</h2>
+                    <p className="text-xs text-muted-foreground">Real-time status of Buddy and Peer reviews across all pods</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {data?.reviewTracker?.length || 0} Missions Active
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm">
+                  <thead>
+                    <tr className="border-b border-border/50 text-muted-foreground text-xs uppercase tracking-wider">
+                      <th className="pb-3 font-semibold">Student</th>
+                      <th className="pb-3 font-semibold">Pod / Word</th>
+                      <th className="pb-3 font-semibold">Buddy Reviewer</th>
+                      <th className="pb-3 font-semibold">Peer Reviewer</th>
+                      <th className="pb-3 font-semibold text-right">Submitted</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border/30">
+                    {data?.reviewTracker && data.reviewTracker.length > 0 ? (
+                      data.reviewTracker.map((item, idx) => (
+                        <tr key={idx} className="hover:bg-muted/20 transition-colors">
+                          <td className="py-3.5 pr-4">
+                            <div className="font-semibold text-foreground">{item.studentName}</div>
+                            <div className="text-xs text-muted-foreground">{item.studentEmail}</div>
+                          </td>
+                          <td className="py-3.5 pr-4">
+                            <span className="inline-block px-2 py-0.5 text-xs rounded bg-muted font-medium text-foreground mr-1.5">
+                              {item.podName}
+                            </span>
+                            <span className="text-xs text-primary font-medium">{item.word}</span>
+                          </td>
+                          <td className="py-3.5 pr-4">
+                            {item.buddyReviewer ? (
+                              <div className="flex items-center gap-1.5">
+                                {item.buddyReviewer.status === 'completed' ? (
+                                  <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">
+                                    <CheckCircle2 className="w-3 h-3" /> {item.buddyReviewer.name}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
+                                    <Clock className="w-3 h-3" /> {item.buddyReviewer.name} (Pending)
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 pr-4">
+                            {item.peerReviewer ? (
+                              <div className="flex items-center gap-1.5">
+                                {item.peerReviewer.status === 'completed' ? (
+                                  <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">
+                                    <CheckCircle2 className="w-3 h-3" /> {item.peerReviewer.name}
+                                  </span>
+                                ) : (
+                                  <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
+                                    <Clock className="w-3 h-3" /> {item.peerReviewer.name} (Pending)
+                                  </span>
+                                )}
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground italic">Unassigned</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 text-right text-xs text-muted-foreground">
+                            {item.submittedAt}
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
+                          No active daily missions in the review queue yet today.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </PremiumCard>
             
             <PremiumCard className="p-6">
               <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
