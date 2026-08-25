@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/cleanup-videos",
       "schedule": "0 2 * * *"
+    },
+    {
+      "path": "/api/cron/daily-assignment",
+      "schedule": "0 0 * * *"
     }
   ]
 }

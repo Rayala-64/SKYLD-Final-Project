@@ -71,16 +71,26 @@ export async function getWordCardByText(wordText: string) {
   return data;
 }
 
-export async function getOrCreateDailyRitual(studentId: string, wordCardId: string, ritualDate: string) {
+import { assignDailyWordForStudent } from "@/lib/server/word_assignment";
+
+export async function getOrCreateDailyRitual(studentId: string, wordCardId?: string, ritualDate?: string) {
+  const today = ritualDate || new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+  // If no specific wordCardId is provided, run the automated quarantine engine
+  if (!wordCardId) {
+    const res = await assignDailyWordForStudent(studentId, today);
+    return res.ritual;
+  }
+
   const supabase = await createClient();
 
   // Try to find existing
   let ritual;
-  const { data: foundRitual, error: findError } = await supabase
+  const { data: foundRitual } = await supabase
     .from('daily_rituals')
-    .select('*, steps:daily_ritual_steps(*)')
+    .select('*, steps:daily_ritual_steps(*), word_card:word_cards(*)')
     .eq('student_id', studentId)
-    .eq('ritual_date', ritualDate)
+    .eq('ritual_date', today)
     .maybeSingle();
     
   ritual = foundRitual;
@@ -92,10 +102,10 @@ export async function getOrCreateDailyRitual(studentId: string, wordCardId: stri
       .insert({
         student_id: studentId,
         word_card_id: wordCardId,
-        ritual_date: ritualDate,
+        ritual_date: today,
         status: 'IN_PROGRESS'
       })
-      .select('*, steps:daily_ritual_steps(*)')
+      .select('*, steps:daily_ritual_steps(*), word_card:word_cards(*)')
       .single();
       
     if (insertError) throw insertError;
@@ -103,6 +113,11 @@ export async function getOrCreateDailyRitual(studentId: string, wordCardId: stri
   }
   
   return ritual;
+}
+
+export async function getOrCreateTodayDailyRitual(studentId: string) {
+  const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+  return await assignDailyWordForStudent(studentId, today);
 }
 
 export async function submitDailyMissionV2(

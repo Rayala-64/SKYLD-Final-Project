@@ -13,7 +13,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/utils/supabase/client";
 import { WordCard16 } from "@/components/vault/WordCard16";
-import { getOrCreateDailyRitual, submitRitualStep, submitDailyMissionV2 } from "@/app/actions/daily_ritual";
+import { getOrCreateDailyRitual, getOrCreateTodayDailyRitual, submitRitualStep, submitDailyMissionV2 } from "@/app/actions/daily_ritual";
 import { triggerConfetti } from "@/lib/confetti";
 
 export default function LearnPage() {
@@ -52,31 +52,27 @@ export default function LearnPage() {
       if (!user) return;
       setStudentId(user.id);
 
-      const today = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-      const { data: word } = await supabase.from("word_cards").select("*").eq("active_date", today).single();
-      
-      if (!word) {
+      // Run automated AI Quarantine & Allocation Engine
+      const res = await getOrCreateTodayDailyRitual(user.id);
+      if (!res?.ritual || !res?.wordCard) {
         setWordData(null);
         setIsLoading(false);
         return;
       }
-      setWordData(word);
 
-      // Get or Create Daily Ritual state machine
-      const currentRitual = await getOrCreateDailyRitual(user.id, word.id, today);
-      setRitual(currentRitual);
+      setWordData(res.wordCard);
+      setRitual(res.ritual);
 
       // Auto-mark Step 1 (Open Vault) if not done
-      const step1 = currentRitual.steps?.find((s:any) => s.step_number === 1);
+      const step1 = res.ritual.steps?.find((s: any) => s.step_number === 1);
       if (!step1) {
-        await submitRitualStep(currentRitual.id, 1, 'OPEN_WORD_VAULT', 0);
-        // Refresh ritual
-        const updated = await getOrCreateDailyRitual(user.id, word.id, today);
-        setRitual(updated);
+        await submitRitualStep(res.ritual.id, 1, 'OPEN_WORD_VAULT', 0);
+        const updated = await getOrCreateTodayDailyRitual(user.id);
+        setRitual(updated.ritual);
       }
 
       // Determine current active step based on completed steps
-      determineCurrentStep(currentRitual.steps || []);
+      determineCurrentStep(res.ritual.steps || []);
     } catch (e) {
       console.error(e);
     } finally {

@@ -50,4 +50,15 @@ export interface AdminDashboardData {
     peerReviewer: { name: string; email: string; status: string } | null;
     submittedAt: string;
   }>;
+  quarantineStats?: {
+    totalWordsInVault: number;
+    activeQuarantinesCount: number;
+    activeQuarantines: Array<{
+      reviewerName: string;
+      word: string;
+      reviewType: string;
+      expiresAt: string;
+    }>;
+    totalCompletedRituals: number;
+  };
 }

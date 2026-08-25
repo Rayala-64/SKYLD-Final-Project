@@ -378,6 +378,63 @@ export default function AdminDashboard() {
               </div>
             </PremiumCard>
             
+            {/* Reviewer Quarantine Engine Card */}
+            <PremiumCard className="p-6">
+              <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="w-5 h-5 text-amber-400" />
+                  <div>
+                    <h2 className="text-xl font-bold">Reviewer Quarantine & Anti-Copying Engine</h2>
+                    <p className="text-xs text-muted-foreground">Automatic 7-day freeze on words reviewed in peer videos + 100-day unique history check</p>
+                  </div>
+                </div>
+                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                  {data?.quarantineStats?.activeQuarantinesCount || 0} Words in 7-Day Quarantine
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
+                  <div className="text-2xl font-bold text-primary">{data?.quarantineStats?.totalWordsInVault || 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Word Vault Candidate Pool</div>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
+                  <div className="text-2xl font-bold text-amber-400">{data?.quarantineStats?.activeQuarantinesCount || 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Active 7-Day Reviewer Quarantines</div>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
+                  <div className="text-2xl font-bold text-emerald-400">{data?.quarantineStats?.totalCompletedRituals || 0}</div>
+                  <div className="text-xs text-muted-foreground mt-1">Learned Words in 100-Day Histories</div>
+                </div>
+              </div>
+
+              {data?.quarantineStats?.activeQuarantines && data.quarantineStats.activeQuarantines.length > 0 ? (
+                <div className="space-y-2">
+                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Live Reviewer Freeze Ledger:</div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {data.quarantineStats.activeQuarantines.map((q, idx) => (
+                      <div key={idx} className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs space-y-1">
+                        <div className="flex items-center justify-between font-semibold">
+                          <span className="text-foreground">{q.reviewerName}</span>
+                          <span className="text-amber-400 font-bold uppercase tracking-wider text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded">
+                            {q.reviewType} REVIEW
+                          </span>
+                        </div>
+                        <div className="text-muted-foreground flex items-center justify-between">
+                          <span>Quarantined: <strong className="text-primary">{q.word}</strong></span>
+                          <span>Holds until {q.expiresAt}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-4 text-xs text-muted-foreground">
+                  No active reviewer quarantines. All candidate words are currently available for allocation.
+                </div>
+              )}
+            </PremiumCard>
+            
             <PremiumCard className="p-6">
               <h2 className="text-xl font-bold mb-4">Recent Activity</h2>
               <div className="space-y-4">

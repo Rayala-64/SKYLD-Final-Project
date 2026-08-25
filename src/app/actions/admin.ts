@@ -156,6 +156,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const submissionsToday = submissionsTodayRes.count || 0;
   const avgCompletionRate = totalStudents > 0 ? Math.round((submissionsToday / totalStudents) * 100) : 0;
 
+  const quarantineStats = await getQuarantineAnalytics();
+
   return {
     platformStats: {
       totalStudents,
@@ -171,7 +173,8 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     recentActivity,
     allUsers,
     pods,
-    reviewTracker
+    reviewTracker,
+    quarantineStats
   };
 }
 
@@ -314,4 +317,14 @@ export async function generateAIWordAction(word: string, wordType: string, field
   if (!data) throw new Error("Failed to generate content");
   
   return { success: true, data };
+}
+
+import { getQuarantineAnalytics } from "@/lib/server/word_assignment";
+
+export async function getQuarantineAnalyticsAction() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  return await getQuarantineAnalytics();
 }
