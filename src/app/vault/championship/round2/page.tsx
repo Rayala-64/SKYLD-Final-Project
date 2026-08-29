@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
-import { ArrowLeft, CheckCircle2, Users, Crown, Video, Sparkles, AlertCircle } from "lucide-react";
 import Link from "next/link";
-import { VideoRecorder } from "@/components/video/VideoRecorder";
+import { ArrowLeft, CheckCircle2, Users, Crown, Video, Sparkles, AlertCircle } from "lucide-react";
+import { PodVideoUploader } from "@/components/video/PodVideoUploader";
 import { getPodChallengeStatus, submitPodChallenge } from "@/app/actions/championships";
 import { getActiveChallenge } from "@/app/actions/championship_admin";
 
@@ -156,8 +156,8 @@ export default function Round2Challenge() {
                     </div>
                   </div>
                 ) : (
-                  <div className="max-w-md mx-auto mt-4">
-                    <VideoRecorder studentId="pod-submission" onUploadSuccess={(url) => setVideoUrl(url)} />
+                  <div className="max-w-xl mx-auto mt-4">
+                    <PodVideoUploader podId={podId || "pod-beta"} onUploadSuccess={(url) => setVideoUrl(url)} />
                   </div>
                 )}
               </PremiumCard>

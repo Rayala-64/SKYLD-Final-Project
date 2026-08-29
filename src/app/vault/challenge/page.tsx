@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
-import { VideoRecorder } from "@/components/video/VideoRecorder";
+import { PodVideoUploader } from "@/components/video/PodVideoUploader";
 import { submitPodChallenge, getPodChallengeStatus } from "@/app/actions/championships";
 import { getActiveChallenge } from "@/app/actions/championship_admin";
 import { Target, Users, ArrowLeft, Trophy, CheckCircle2, AlertCircle } from "lucide-react";
@@ -186,8 +186,8 @@ export default function WeeklyChallengePage() {
                     </div>
                   ) : (
                     <div className="mt-4">
-                      <VideoRecorder 
-                        studentId="pod-submission" 
+                      <PodVideoUploader 
+                        podId={podId || "pod-beta"} 
                         onUploadSuccess={(url) => setVideoUrl(url)} 
                       />
                     </div>
