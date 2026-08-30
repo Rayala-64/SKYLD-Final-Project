@@ -46,8 +46,10 @@ export interface AdminDashboardData {
     studentEmail: string;
     podName: string;
     word: string;
-    buddyReviewer: { name: string; email: string; status: string } | null;
-    peerReviewer: { name: string; email: string; status: string } | null;
+    buddyReviewer: { name: string; email: string; status: string; holdDate?: string; isHoldActive?: boolean } | null;
+    peerReviewer: { name: string; email: string; status: string; holdDate?: string; isHoldActive?: boolean } | null;
+    holdDate?: string;
+    isHoldActive?: boolean;
     submittedAt: string;
   }>;
   quarantineStats?: {

@@ -49,6 +49,8 @@ export interface StudentDashboardData {
   }>;
 }
 
+import { assignDailyWordForStudent } from "@/lib/server/word_assignment";
+
 export async function getStudentDashboardData(): Promise<StudentDashboardData> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -57,12 +59,18 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     throw new Error("Unauthorized");
   }
 
-  const [profileRes, wordCardsRes, submissionsRes, streakRes] = await Promise.all([
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
+
+  const [profileRes, ritualRes, submissionsRes, streakRes] = await Promise.all([
     supabase.from("users").select("full_name, level, pod_id, total_xp").eq("id", user.id).single(),
     (async () => {
-      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-      const res = await supabase.from("word_cards").select("*").eq("active_date", todayStr).single();
-      return res;
+      try {
+        const { wordCard, ritual } = await assignDailyWordForStudent(user.id, todayStr);
+        return { data: wordCard, isCompleted: ritual?.status === 'COMPLETED' };
+      } catch (e) {
+        console.error("Dashboard word assignment fallback error:", e);
+        return { data: null, isCompleted: false };
+      }
     })(),
     supabase.from("submissions").select("*").eq("user_id", user.id),
     supabase.from("streaks").select("current_streak").eq("user_id", user.id).single()
@@ -155,7 +163,6 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     });
   }
   let isCompleted = false;
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
   const todaySubmission = submissions.find((s: any) => s.date === todayStr && s.status === 'submitted');
   if (todaySubmission) {
     isCompleted = true;
@@ -226,12 +233,12 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
       current_streak: streakRes.data?.current_streak || 0, 
       communication_score 
     },
-    dailyWord: wordCardsRes.data ? {
-      id: wordCardsRes.data.id,
-      word: wordCardsRes.data.word,
-      meaning: wordCardsRes.data.definition,
-      challenge_text: wordCardsRes.data.example_sentence || null,
-      isCompleted
+    dailyWord: ritualRes.data ? {
+      id: ritualRes.data.id,
+      word: ritualRes.data.word,
+      meaning: ritualRes.data.meaning || ritualRes.data.definition || "",
+      challenge_text: ritualRes.data.daily_life_example || ritualRes.data.business_example || ritualRes.data.example_sentence || null,
+      isCompleted: ritualRes.isCompleted || isCompleted
     } : null,
     championshipLeaderboard,
     buddy,

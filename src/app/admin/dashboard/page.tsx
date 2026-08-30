@@ -289,87 +289,121 @@ export default function AdminDashboard() {
               </PremiumCard>
             </div>
             
+            {/* Unified Live Review & Anti-Copying Tracker Card */}
             <PremiumCard className="p-6">
-              <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-3">
-                <div className="flex items-center gap-2">
-                  <Users className="w-5 h-5 text-primary" />
+              <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
+                    <Users className="w-6 h-6" />
+                  </div>
                   <div>
-                    <h2 className="text-xl font-bold">Live Review Queue Tracker</h2>
-                    <p className="text-xs text-muted-foreground">Real-time status of Buddy and Peer reviews across all pods</p>
+                    <h2 className="text-xl font-bold">Live Review Queue & Anti-Copying Tracker</h2>
+                    <p className="text-xs text-muted-foreground">Real-time status of Buddy reviews, Peer reviews, and active 7-day anti-echo holds</p>
                   </div>
                 </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
-                  {data?.reviewTracker?.length || 0} Missions Active
+                <span className="text-xs font-bold px-3 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">
+                  {data?.reviewTracker?.length || 0} Active Missions
                 </span>
               </div>
 
-              <div className="overflow-x-auto">
+              {/* 3 Core Overview Metric Pills */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
+                  <div className="text-2xl font-bold text-primary">{data?.quarantineStats?.totalWordsInVault || 100}</div>
+                  <div className="text-sm font-semibold text-foreground mt-1">Total Vault Words</div>
+                  <div className="text-[11px] text-muted-foreground">100-Day Semester Curriculum</div>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
+                  <div className="text-2xl font-bold text-amber-400">{data?.reviewTracker?.length || 0}</div>
+                  <div className="text-sm font-semibold text-foreground mt-1">Active Missions in Queue</div>
+                  <div className="text-[11px] text-muted-foreground">Awaiting peer feedback</div>
+                </div>
+                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
+                  <div className="text-2xl font-bold text-emerald-400">{data?.quarantineStats?.totalCompletedRituals || 0}</div>
+                  <div className="text-sm font-semibold text-foreground mt-1">Completed Daily Missions</div>
+                  <div className="text-[11px] text-muted-foreground">Across all student histories</div>
+                </div>
+              </div>
+
+              {/* Unified Table */}
+              <div className="overflow-x-auto rounded-xl border border-border/50 bg-muted/10">
                 <table className="w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-border/50 text-muted-foreground text-xs uppercase tracking-wider">
-                      <th className="pb-3 font-semibold">Student</th>
-                      <th className="pb-3 font-semibold">Pod / Word</th>
-                      <th className="pb-3 font-semibold">Buddy Reviewer</th>
-                      <th className="pb-3 font-semibold">Peer Reviewer</th>
-                      <th className="pb-3 font-semibold text-right">Submitted</th>
+                    <tr className="border-b border-border/50 text-muted-foreground text-xs uppercase tracking-wider bg-muted/20">
+                      <th className="py-3 px-4 font-semibold">Student (Speaker)</th>
+                      <th className="py-3 px-4 font-semibold">Pod / Word</th>
+                      <th className="py-3 px-4 font-semibold">Buddy Reviewer</th>
+                      <th className="py-3 px-4 font-semibold">Peer Reviewer</th>
+                      <th className="py-3 px-4 font-semibold">🛡️ 7-Day Anti-Echo Hold</th>
+                      <th className="py-3 px-4 font-semibold text-right">Submitted</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/30">
                     {data?.reviewTracker && data.reviewTracker.length > 0 ? (
                       data.reviewTracker.map((item, idx) => (
                         <tr key={idx} className="hover:bg-muted/20 transition-colors">
-                          <td className="py-3.5 pr-4">
+                          <td className="py-3.5 px-4">
                             <div className="font-semibold text-foreground">{item.studentName}</div>
                             <div className="text-xs text-muted-foreground">{item.studentEmail}</div>
                           </td>
-                          <td className="py-3.5 pr-4">
+                          <td className="py-3.5 px-4">
                             <span className="inline-block px-2 py-0.5 text-xs rounded bg-muted font-medium text-foreground mr-1.5">
                               {item.podName}
                             </span>
-                            <span className="text-xs text-primary font-medium">{item.word}</span>
+                            <span className="text-xs text-primary font-bold">{item.word}</span>
                           </td>
-                          <td className="py-3.5 pr-4">
+                          <td className="py-3.5 px-4">
                             {item.buddyReviewer ? (
-                              <div className="flex items-center gap-1.5">
-                                {item.buddyReviewer.status === 'completed' ? (
-                                  <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">
-                                    <CheckCircle2 className="w-3 h-3" /> {item.buddyReviewer.name}
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
-                                    <Clock className="w-3 h-3" /> {item.buddyReviewer.name} (Pending)
-                                  </span>
-                                )}
-                              </div>
+                              item.buddyReviewer.status === 'completed' ? (
+                                <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> {item.buddyReviewer.name}
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 font-medium">
+                                  <Clock className="w-3.5 h-3.5" /> {item.buddyReviewer.name} (Pending)
+                                </span>
+                              )
                             ) : (
                               <span className="text-xs text-muted-foreground italic">Unassigned</span>
                             )}
                           </td>
-                          <td className="py-3.5 pr-4">
+                          <td className="py-3.5 px-4">
                             {item.peerReviewer ? (
-                              <div className="flex items-center gap-1.5">
-                                {item.peerReviewer.status === 'completed' ? (
-                                  <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-medium">
-                                    <CheckCircle2 className="w-3 h-3" /> {item.peerReviewer.name}
-                                  </span>
-                                ) : (
-                                  <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20 font-medium">
-                                    <Clock className="w-3 h-3" /> {item.peerReviewer.name} (Pending)
-                                  </span>
-                                )}
-                              </div>
+                              item.peerReviewer.status === 'completed' ? (
+                                <span className="flex items-center gap-1 text-xs text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 font-medium">
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> {item.peerReviewer.name}
+                                </span>
+                              ) : (
+                                <span className="flex items-center gap-1 text-xs text-amber-400 bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20 font-medium">
+                                  <Clock className="w-3.5 h-3.5" /> {item.peerReviewer.name} (Pending)
+                                </span>
+                              )
                             ) : (
                               <span className="text-xs text-muted-foreground italic">Unassigned</span>
                             )}
                           </td>
-                          <td className="py-3.5 text-right text-xs text-muted-foreground">
+                          <td className="py-3.5 px-4 text-xs">
+                            {item.holdDate ? (
+                              <div className="space-y-0.5">
+                                <div className="text-muted-foreground">
+                                  🔒 <strong className="text-foreground">{item.word}</strong> frozen
+                                </div>
+                                <div className="text-[11px] text-amber-400 font-medium">
+                                  Holds until {item.holdDate}
+                                </div>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                          <td className="py-3.5 px-4 text-right text-xs text-muted-foreground">
                             {item.submittedAt}
                           </td>
                         </tr>
                       ))
                     ) : (
                       <tr>
-                        <td colSpan={5} className="py-8 text-center text-muted-foreground text-sm">
+                        <td colSpan={6} className="py-8 text-center text-muted-foreground text-sm">
                           No active daily missions in the review queue yet today.
                         </td>
                       </tr>
@@ -377,63 +411,6 @@ export default function AdminDashboard() {
                   </tbody>
                 </table>
               </div>
-            </PremiumCard>
-            
-            {/* Reviewer Quarantine Engine Card */}
-            <PremiumCard className="p-6">
-              <div className="flex items-center justify-between mb-4 border-b border-border/50 pb-3">
-                <div className="flex items-center gap-2">
-                  <Shield className="w-5 h-5 text-amber-400" />
-                  <div>
-                    <h2 className="text-xl font-bold">Reviewer Quarantine & Anti-Copying Engine</h2>
-                    <p className="text-xs text-muted-foreground">Automatic 7-day freeze on words reviewed in peer videos + 100-day unique history check</p>
-                  </div>
-                </div>
-                <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                  {data?.quarantineStats?.activeQuarantinesCount || 0} Words in 7-Day Quarantine
-                </span>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
-                  <div className="text-2xl font-bold text-primary">{data?.quarantineStats?.totalWordsInVault || 0}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Word Vault Candidate Pool</div>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
-                  <div className="text-2xl font-bold text-amber-400">{data?.quarantineStats?.activeQuarantinesCount || 0}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Active 7-Day Reviewer Quarantines</div>
-                </div>
-                <div className="p-4 rounded-xl bg-muted/20 border border-border/40 text-center">
-                  <div className="text-2xl font-bold text-emerald-400">{data?.quarantineStats?.totalCompletedRituals || 0}</div>
-                  <div className="text-xs text-muted-foreground mt-1">Learned Words in 100-Day Histories</div>
-                </div>
-              </div>
-
-              {data?.quarantineStats?.activeQuarantines && data.quarantineStats.activeQuarantines.length > 0 ? (
-                <div className="space-y-2">
-                  <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">Live Reviewer Freeze Ledger:</div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                    {data.quarantineStats.activeQuarantines.map((q, idx) => (
-                      <div key={idx} className="p-3 rounded-xl bg-amber-500/5 border border-amber-500/20 text-xs space-y-1">
-                        <div className="flex items-center justify-between font-semibold">
-                          <span className="text-foreground">{q.reviewerName}</span>
-                          <span className="text-amber-400 font-bold uppercase tracking-wider text-[10px] bg-amber-500/10 px-1.5 py-0.5 rounded">
-                            {q.reviewType} REVIEW
-                          </span>
-                        </div>
-                        <div className="text-muted-foreground flex items-center justify-between">
-                          <span>Quarantined: <strong className="text-primary">{q.word}</strong></span>
-                          <span>Holds until {q.expiresAt}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-4 text-xs text-muted-foreground">
-                  No active reviewer quarantines. All candidate words are currently available for allocation.
-                </div>
-              )}
             </PremiumCard>
             
             <PremiumCard className="p-6">

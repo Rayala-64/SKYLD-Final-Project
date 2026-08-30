@@ -135,17 +135,26 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
     }
 
     const item = trackerMap.get(key);
+    const holdDate = new Date(new Date(r.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    const isHoldActive = new Date(r.created_at).getTime() + 7 * 24 * 60 * 60 * 1000 > Date.now();
+    item.holdDate = holdDate;
+    item.isHoldActive = isHoldActive;
+
     if (r.review_type === 'BUDDY') {
       item.buddyReviewer = {
         name: r.reviewer?.full_name || "Buddy",
         email: r.reviewer?.email || "",
-        status: r.status
+        status: r.status,
+        holdDate,
+        isHoldActive
       };
     } else if (r.review_type === 'PEER') {
       item.peerReviewer = {
         name: r.reviewer?.full_name || "Peer",
         email: r.reviewer?.email || "",
-        status: r.status
+        status: r.status,
+        holdDate,
+        isHoldActive
       };
     }
   }
@@ -331,7 +340,7 @@ export async function getQuarantineAnalyticsAction() {
 
 import { CURATED_100_WORDS } from "@/lib/server/curated_words_100";
 
-export async function bulkSeed100CorporateWords() {
+export async function bulkSeed100CorporateWords(force: boolean = false) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -344,12 +353,27 @@ export async function bulkSeed100CorporateWords() {
     process.env.SUPABASE_SERVICE_ROLE_KEY || ""
   );
 
+  // Check if Word Vault is already fully populated
+  const { count: existingCount } = await adminClient
+    .from('word_cards')
+    .select('id', { count: 'exact', head: true });
+
+  if (!force && (existingCount || 0) >= 100) {
+    return {
+      success: true,
+      alreadySeeded: true,
+      count: existingCount,
+      message: "Word Vault is already fully populated with 100 enterprise corporate words."
+    };
+  }
+
   let insertedCount = 0;
   for (const item of CURATED_100_WORDS) {
     const payload = {
       word: item.word,
       word_type: item.word_type,
       level: item.level,
+      active_date: new Date().toISOString().split('T')[0],
       ipa_pronunciation: item.ipa_pronunciation,
       meaning: item.meaning,
       definition: item.meaning,
@@ -378,5 +402,5 @@ export async function bulkSeed100CorporateWords() {
     if (!error) insertedCount++;
   }
 
-  return { success: true, count: insertedCount };
+  return { success: true, alreadySeeded: false, count: insertedCount };
 }

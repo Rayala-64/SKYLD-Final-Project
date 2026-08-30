@@ -109,11 +109,14 @@ function WordEditorContent() {
   };
 
   const handleBulkSeed = async () => {
-    if (!confirm("This will seed 100 enterprise corporate words with all 16 rich pedagogical fields directly into your Word Vault. Continue?")) return;
     setIsBulkSeeding(true);
     try {
-      const res = await bulkSeed100CorporateWords();
-      alert(`🎉 Success! Populated ${res.count} words with all 16 rich fields into the Word Vault!`);
+      const res = await bulkSeed100CorporateWords(false);
+      if (res.alreadySeeded) {
+        alert(`✅ Word Vault is already fully populated with ${res.count} enterprise corporate words!\n\nThe 100-Day Semester Curriculum is active and locked. No changes were made.`);
+      } else {
+        alert(`🎉 Success! Populated ${res.count} words with all 16 rich pedagogical fields into the Word Vault!`);
+      }
       router.push('/admin/dashboard');
     } catch (e: any) {
       alert("Failed to bulk seed: " + e.message);

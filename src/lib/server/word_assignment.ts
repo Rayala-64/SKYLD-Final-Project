@@ -273,9 +273,11 @@ export async function getQuarantineAnalytics() {
     .select(`
       id,
       reviewer_id,
+      reviewee_id,
       review_type,
       created_at,
       reviewer:users!ritual_reviews_reviewer_id_fkey(full_name),
+      reviewee:users!ritual_reviews_reviewee_id_fkey(full_name),
       ritual:daily_rituals(
         word_card:word_cards(id, word)
       )
@@ -291,6 +293,7 @@ export async function getQuarantineAnalytics() {
     activeQuarantinesCount: activeQuarantines?.length || 0,
     activeQuarantines: activeQuarantines?.map((q: any) => ({
       reviewerName: q.reviewer?.full_name || "Student",
+      revieweeName: q.reviewee?.full_name || "Peer",
       word: q.ritual?.word_card?.word || "Word",
       reviewType: q.review_type,
       expiresAt: new Date(new Date(q.created_at).getTime() + 7 * 24 * 60 * 60 * 1000).toLocaleDateString()
