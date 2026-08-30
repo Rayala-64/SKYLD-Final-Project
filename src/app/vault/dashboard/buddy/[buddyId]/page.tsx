@@ -1,69 +1,42 @@
 import { getStudentDashboardData } from "@/app/actions/student";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
-import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import { StaggerContainer, StaggerItem } from "@/components/animations/Stagger";
 import { ProgressRing } from "@/components/ui/custom/ProgressRing";
-import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Flame, Zap, Brain, ArrowRight, Trophy, BookOpen, Crown, Users, Star, Target, Crosshair, Activity } from "lucide-react";
+import { Flame, Zap, Trophy, BookOpen, Crown, Target, Users } from "lucide-react";
 import Link from "next/link";
 import { createClient } from "@/utils/supabase/server";
-import { ChampionshipLeaderboardRealtime } from "@/components/championships/LeaderboardRealtime";
 
-export default async function StudentDashboard() {
-  const data = await getStudentDashboardData();
+export default async function BuddyDashboard({ params }: { params: Promise<{ buddyId: string }> }) {
+  const resolvedParams = await params;
+  const data = await getStudentDashboardData(resolvedParams.buddyId);
   
-  // Fetch championship standings
+  // Fetch championship standings for buddy
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
   const { data: standing } = await supabase
     .from('championship_standings')
     .select('*')
-    .eq('student_id', user?.id)
+    .eq('student_id', resolvedParams.buddyId)
     .single();
 
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-8 pb-8">
         
-        {/* Enterprise Hero */}
+        {/* Header */}
         <section className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
           <div>
             <h1 className="text-4xl md:text-5xl font-heading font-bold text-foreground">
-              Good Morning, {data.profile.full_name.split(' ')[0]} <span className="inline-block origin-bottom-right hover:animate-wave">👋</span>
+              Buddy Dashboard: {data.profile.full_name}
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              You're on a <strong className="text-warning">{data.stats.current_streak}-day</strong> learning streak. Outstanding commitment.
+              Viewing progress for your study buddy. They are on a <strong className="text-warning">{data.stats.current_streak}-day</strong> learning streak.
             </p>
           </div>
-          <PremiumButton size="lg" className="rounded-full shadow-lg text-lg px-8" asChild>
-            <Link href="/vault/learn">
-              {data.dailyWord?.isCompleted ? "Review Today's Word" : "Start Daily Mission"} <ArrowRight className="ml-2 w-5 h-5" />
-            </Link>
-          </PremiumButton>
+          <Link href="/vault/dashboard" className="text-primary hover:underline font-semibold">
+            &larr; Back to my dashboard
+          </Link>
         </section>
-
-        {data.announcements.length > 0 && (
-          <section className="space-y-4">
-            {data.announcements.map((announcement) => (
-              <div key={announcement.id} className={`p-4 rounded-xl border ${announcement.scope === 'global' ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-indigo-500/10 border-indigo-500/20 text-indigo-500'} flex items-start gap-4 shadow-sm`}>
-                <div className="p-2 bg-background/50 rounded-lg shrink-0">
-                  <BookOpen className="w-5 h-5" />
-                </div>
-                <div>
-                  <h4 className="font-bold mb-1 flex items-center gap-2">
-                    {announcement.title}
-                    <span className="text-[10px] uppercase tracking-wider font-bold px-2 py-0.5 rounded-full bg-background/50">
-                      {announcement.scope}
-                    </span>
-                  </h4>
-                  <p className="text-sm opacity-90">{announcement.body}</p>
-                </div>
-              </div>
-            ))}
-          </section>
-        )}
 
         <StaggerContainer className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           
@@ -162,13 +135,16 @@ export default async function StudentDashboard() {
               <div className="p-6 border-b border-border/40 flex items-center justify-between">
                 <div>
                   <h3 className="text-2xl font-semibold flex items-center gap-2">
-                    <BookOpen className="text-primary w-6 h-6" /> Daily Mission
+                    <BookOpen className="text-primary w-6 h-6" /> Daily Mission Status
                   </h3>
-                  <p className="text-muted-foreground mt-1">Master today's vocabulary and reflection.</p>
                 </div>
-                {data.dailyWord?.isCompleted && (
+                {data.dailyWord?.isCompleted ? (
                   <span className="bg-success/20 text-success text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
                     Completed
+                  </span>
+                ) : (
+                  <span className="bg-muted/50 text-muted-foreground text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
+                    Not Completed
                   </span>
                 )}
               </div>
@@ -177,11 +153,7 @@ export default async function StudentDashboard() {
                   <>
                     <h2 className="text-6xl font-bold font-heading text-foreground tracking-tight">{data.dailyWord.word}</h2>
                     <p className="text-xl text-muted-foreground max-w-lg mx-auto">{data.dailyWord.meaning}</p>
-                    <div className="pt-4">
-                      <PremiumButton size="lg" asChild>
-                         <Link href="/vault/learn">{data.dailyWord.isCompleted ? "Review Mission" : "Start Mission"}</Link>
-                      </PremiumButton>
-                    </div>
+                    <p className="pt-4 text-sm text-muted-foreground italic">You are viewing your buddy's progress.</p>
                   </>
                 ) : (
                   <p className="text-lg text-muted-foreground">No mission scheduled for today.</p>
@@ -189,121 +161,41 @@ export default async function StudentDashboard() {
               </div>
               </PremiumCard>
 
-              {/* Daily Quests Area */}
+              {/* Read-Only Statuses */}
               <div className="pt-4 space-y-4">
                 <h3 className="text-xl font-bold font-heading flex items-center gap-2">
-                  <Zap className="text-warning w-5 h-5" /> Daily Quests
+                  <Zap className="text-warning w-5 h-5" /> Daily Quests Status
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <PremiumCard glass className={`p-5 border-l-4 flex items-center justify-between transition-all ${data.dailyWord?.isCompleted ? 'border-l-success bg-success/5' : 'border-l-primary hover:bg-muted/50'}`}>
+                  <PremiumCard glass className={`p-5 border-l-4 flex items-center justify-between transition-all ${data.dailyWord?.isCompleted ? 'border-l-success bg-success/5' : 'border-l-muted-foreground/30 bg-muted/20'}`}>
                     <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${data.dailyWord?.isCompleted ? 'bg-success/20 text-success' : 'bg-primary/10 text-primary'}`}>
+                      <div className={`p-2 rounded-full ${data.dailyWord?.isCompleted ? 'bg-success/20 text-success' : 'bg-muted-foreground/20 text-muted-foreground'}`}>
                         <BookOpen className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="font-bold text-sm">Complete Mission</h4>
-                        <p className="text-xs text-muted-foreground">+50 XP</p>
                       </div>
                     </div>
                     {data.dailyWord?.isCompleted ? <div className="text-success font-bold text-sm">DONE</div> : <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30" />}
                   </PremiumCard>
                   
-                  <PremiumCard glass className="p-5 border-l-4 border-l-secondary hover:bg-muted/50 flex items-center justify-between transition-all">
+                  <PremiumCard glass className={`p-5 border-l-4 flex items-center justify-between transition-all ${data.dailyWord?.isCompleted ? 'border-l-secondary bg-secondary/5' : 'border-l-muted-foreground/30 bg-muted/20'}`}>
                     <div className="flex items-center gap-3">
-                      <div className="p-2 bg-secondary/10 rounded-full text-secondary">
+                      <div className={`p-2 bg-secondary/10 rounded-full ${data.dailyWord?.isCompleted ? 'text-secondary bg-secondary/20' : 'bg-muted-foreground/20 text-muted-foreground'}`}>
                         <Flame className="w-5 h-5" />
                       </div>
                       <div>
                         <h4 className="font-bold text-sm">Maintain Streak</h4>
-                        <p className="text-xs text-muted-foreground">+20 XP</p>
                       </div>
                     </div>
                     {data.dailyWord?.isCompleted ? <div className="text-success font-bold text-sm">DONE</div> : <div className="w-6 h-6 rounded-full border-2 border-muted-foreground/30" />}
                   </PremiumCard>
                 </div>
               </div>
-
-              {/* Pending Reviews Area */}
-              <div className="pt-4 space-y-4">
-                <h3 className="text-xl font-bold font-heading flex items-center gap-2">
-                  <Users className="text-blue-500 w-5 h-5" /> Pending Reviews
-                </h3>
-                <PremiumCard glass className="p-6 border-l-4 border-l-blue-500 bg-gradient-to-r from-blue-500/5 to-transparent flex items-center justify-between">
-                  <div>
-                    <h4 className="font-bold text-lg">Help your peers grow</h4>
-                    <p className="text-sm text-muted-foreground">Complete assigned Buddy & Peer reviews to earn points.</p>
-                  </div>
-                  <PremiumButton asChild variant="outline" className="border-blue-500 text-blue-500 hover:bg-blue-500/10">
-                    <Link href="/vault/review">Go to Reviews</Link>
-                  </PremiumButton>
-                </PremiumCard>
-                {/* Weekly Challenges Area */}
-              <div className="pt-4 space-y-4">
-                <h3 className="text-xl font-bold font-heading flex items-center gap-2">
-                  <Target className="text-purple-500 w-5 h-5" /> Weekly Pod Challenges
-                </h3>
-                <PremiumCard glass className="p-6 border-l-4 border-l-purple-500 bg-gradient-to-r from-purple-500/5 to-transparent flex flex-col md:flex-row items-center justify-between gap-4">
-                  <div>
-                    <h4 className="font-bold text-lg">Pod Collaboration</h4>
-                    <p className="text-sm text-muted-foreground">Submit your weekly collective video challenge to earn up to 10 points.</p>
-                  </div>
-                  <PremiumButton asChild variant="outline" className="border-purple-500 text-purple-500 hover:bg-purple-500/10 w-full md:w-auto">
-                    <Link href="/vault/challenge">View Challenge</Link>
-                  </PremiumButton>
-                </PremiumCard>
-              </div>
-            </div>
             </div>
 
           {/* Sidebar Area */}
           <div className="space-y-6">
-            <PremiumCard glass className="p-0 overflow-hidden">
-              <div className="p-4 border-b border-border/40 flex items-center justify-between">
-                <h3 className="font-semibold flex items-center gap-2">
-                  <Crown className="w-5 h-5 text-yellow-500" /> Championship Standings
-                </h3>
-                <Link href="/leaderboard" className="text-xs font-semibold text-primary hover:underline">
-                  View Full
-                </Link>
-              </div>
-              <ChampionshipLeaderboardRealtime initialData={data.championshipLeaderboard} />
-            </PremiumCard>
-
-            <PremiumCard glass className="p-6 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 border-indigo-500/20">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold flex items-center gap-2">
-                  <Flame className="w-5 h-5 text-indigo-500" /> Study Buddy
-                </h3>
-              </div>
-              
-              {data.buddy ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <span className="font-medium">{data.buddy.full_name}</span>
-                    <span className="text-sm bg-background/50 px-2 py-1 rounded-md text-muted-foreground">
-                      {data.buddy.streak} Day Streak
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <div className={`w-2 h-2 rounded-full ${data.buddy.completedToday ? 'bg-success' : 'bg-muted-foreground'}`} />
-                    <span className="text-muted-foreground">
-                      {data.buddy.completedToday ? "Completed today's mission" : "Has not started today"}
-                    </span>
-                  </div>
-                  <PremiumButton variant="outline" className="w-full text-xs h-9 border-indigo-500/50 text-indigo-500 hover:bg-indigo-500/10" asChild>
-                    <Link href={`/vault/dashboard/buddy/${data.buddy.id}`}>View Progress</Link>
-                  </PremiumButton>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <p className="text-sm text-muted-foreground">You haven't selected a study buddy yet. Learning is better together!</p>
-                  <PremiumButton variant="outline" className="w-full text-xs h-9" asChild>
-                    <Link href="/vault/pod">Find a Buddy</Link>
-                  </PremiumButton>
-                </div>
-              )}
-            </PremiumCard>
-
             <PremiumCard glass className="p-0 overflow-hidden">
               <div className="p-4 border-b border-border/40 flex items-center justify-between">
                 <h3 className="font-semibold flex items-center gap-2">
@@ -315,7 +207,7 @@ export default async function StudentDashboard() {
               </div>
               <div className="p-4">
                 {data.badges.length === 0 ? (
-                  <p className="text-sm text-muted-foreground text-center py-4">Keep completing daily missions to earn badges!</p>
+                  <p className="text-sm text-muted-foreground text-center py-4">No badges earned yet.</p>
                 ) : (
                   <div className="grid grid-cols-3 gap-3">
                     {data.badges.map((badge) => (

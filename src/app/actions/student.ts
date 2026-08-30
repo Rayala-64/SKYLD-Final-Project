@@ -51,7 +51,7 @@ export interface StudentDashboardData {
 
 import { assignDailyWordForStudent } from "@/lib/server/word_assignment";
 
-export async function getStudentDashboardData(): Promise<StudentDashboardData> {
+export async function getStudentDashboardData(targetUserId?: string): Promise<StudentDashboardData> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -61,9 +61,19 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
 
   const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
+  const fetchUserId = targetUserId || user.id;
+
   const [profileRes, ritualRes, submissionsRes, streakRes] = await Promise.all([
-    supabase.from("users").select("full_name, level, pod_id, total_xp").eq("id", user.id).single(),
+    supabase.from("users").select("full_name, level, pod_id, total_xp").eq("id", fetchUserId).single(),
     (async () => {
+      if (fetchUserId !== user.id) {
+        const { data: ritual } = await supabase.from("daily_rituals").select("*").eq("student_id", fetchUserId).eq("ritual_date", todayStr).maybeSingle();
+        if (ritual) {
+           const { data: wc } = await supabase.from("word_cards").select("*").eq("id", ritual.word_card_id).single();
+           return { data: wc, isCompleted: ritual.status === 'COMPLETED' };
+        }
+        return { data: null, isCompleted: false };
+      }
       try {
         const { wordCard, ritual } = await assignDailyWordForStudent(user.id, todayStr);
         return { data: wordCard, isCompleted: ritual?.status === 'COMPLETED' };
@@ -72,8 +82,8 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
         return { data: null, isCompleted: false };
       }
     })(),
-    supabase.from("submissions").select("*").eq("user_id", user.id),
-    supabase.from("streaks").select("current_streak").eq("user_id", user.id).single()
+    supabase.from("submissions").select("*").eq("user_id", fetchUserId),
+    supabase.from("streaks").select("current_streak").eq("user_id", fetchUserId).single()
   ]);
 
   const profile = profileRes.data;
@@ -91,10 +101,10 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     .order("batch_rank", { ascending: true })
     .limit(10);
     
-  // Current user
+  // Current user / target user
   const { data: currentUserStanding } = await adminClient.from("championship_standings")
     .select("student_id, student_name, total_score, batch_rank")
-    .eq("student_id", user.id)
+    .eq("student_id", fetchUserId)
     .single();
 
   const submissions = submissionsRes.data || [];
@@ -150,13 +160,13 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     topStudents.forEach((student: any) => {
       championshipLeaderboard.push({
         ...student,
-        is_current_user: student.student_id === user.id
+        is_current_user: student.student_id === fetchUserId
       });
       topIds.add(student.student_id);
     });
   }
   
-  if (currentUserStanding && !topIds.has(user.id)) {
+  if (currentUserStanding && !topIds.has(fetchUserId)) {
     championshipLeaderboard.push({
       ...currentUserStanding,
       is_current_user: true
@@ -172,12 +182,12 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
   const { data: buddyPair } = await adminClient
     .from("buddy_pairs")
     .select("user1_id, user2_id")
-    .or(`user1_id.eq.${user.id},user2_id.eq.${user.id}`)
+    .or(`user1_id.eq.${fetchUserId},user2_id.eq.${fetchUserId}`)
     .eq("active", true)
     .maybeSingle();
 
   if (buddyPair) {
-    const buddyId = buddyPair.user1_id === user.id ? buddyPair.user2_id : buddyPair.user1_id;
+    const buddyId = buddyPair.user1_id === fetchUserId ? buddyPair.user2_id : buddyPair.user1_id;
     const { data: buddyProfile } = await adminClient.from("users").select("full_name").eq("id", buddyId).single();
     if (buddyProfile) {
       // Check if buddy completed today's ritual
@@ -215,7 +225,7 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
   const { data: badgesData } = await supabase
     .from("user_badges")
     .select("id, earned_at, badges(id, name, icon_name)")
-    .eq("user_id", user.id)
+    .eq("user_id", fetchUserId)
     .order("earned_at", { ascending: false });
 
   const badges = (badgesData || []).map((b: any) => ({

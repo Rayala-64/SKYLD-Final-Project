@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PodMessageForm } from "./PodMessageForm";
 import { PodMessageList } from "@/components/pod/PodMessageList";
 import { SelectBuddyButton } from "@/components/pod/SelectBuddyButton";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 
@@ -103,9 +104,17 @@ export default async function PodPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-primary">{student.xp.toLocaleString()} XP</span>
+                      <span className="text-xs font-semibold text-primary mr-2">{student.xp.toLocaleString()} XP</span>
                       {currentUserId && currentUserId !== student.id && (
-                        <SelectBuddyButton buddyId={student.id} />
+                        <>
+                          <Link 
+                            href={`/vault/dashboard/buddy/${student.id}`}
+                            className="text-xs px-2 py-1 bg-secondary/10 text-secondary hover:bg-secondary/20 rounded font-medium"
+                          >
+                            View
+                          </Link>
+                          <SelectBuddyButton buddyId={student.id} />
+                        </>
                       )}
                     </div>
                   </div>
