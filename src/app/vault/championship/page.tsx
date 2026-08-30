@@ -6,7 +6,14 @@ import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import Link from "next/link";
 
-export default function ChampionshipHub() {
+import { getActiveChallenge } from "@/app/actions/championship_admin";
+
+export default async function ChampionshipHub() {
+  const activeChallenge = await getActiveChallenge();
+  const weekInfo: any = Array.isArray(activeChallenge?.championship_weeks)
+    ? activeChallenge?.championship_weeks[0]
+    : activeChallenge?.championship_weeks;
+  const endDate = weekInfo?.end_date;
   return (
     <DashboardLayout>
       <div className="max-w-6xl mx-auto space-y-8 pb-8">
@@ -76,9 +83,25 @@ export default function ChampionshipHub() {
               </div>
             </CardHeader>
             <CardContent className="space-y-6">
-              <p className="text-muted-foreground">
-                Together as a Pod, prepare for 30 minutes to deliver a seamless 16-minute story utilizing the vocabulary and leadership principles learned this month.
+              <p className="text-muted-foreground text-sm">
+                Together as a Pod, prepare to deliver a seamless 16-minute story utilizing the vocabulary and leadership principles learned this month.
               </p>
+
+              {activeChallenge && (
+                <div className="p-3.5 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-1 text-left">
+                  <div className="flex items-center justify-between text-xs font-bold text-amber-500">
+                    <span>🔥 Active Topic: {activeChallenge.theme || 'Innovation & Technology'}</span>
+                    {endDate && (
+                      <span className="text-[11px] font-normal text-muted-foreground">
+                        Deadline: {new Date(endDate).toLocaleDateString()}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground line-clamp-2">
+                    <strong>{activeChallenge.title}:</strong> {activeChallenge.description}
+                  </p>
+                </div>
+              )}
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col items-center justify-center p-4 bg-background/50 rounded-xl border border-border/50">

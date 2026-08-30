@@ -328,3 +328,55 @@ export async function getQuarantineAnalyticsAction() {
 
   return await getQuarantineAnalytics();
 }
+
+import { CURATED_100_WORDS } from "@/lib/server/curated_words_100";
+
+export async function bulkSeed100CorporateWords() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
+
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+  if (!profile || profile.role !== 'admin') throw new Error("Unauthorized");
+
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  );
+
+  let insertedCount = 0;
+  for (const item of CURATED_100_WORDS) {
+    const payload = {
+      word: item.word,
+      word_type: item.word_type,
+      level: item.level,
+      ipa_pronunciation: item.ipa_pronunciation,
+      meaning: item.meaning,
+      definition: item.meaning,
+      synonyms: item.synonyms,
+      antonyms: item.antonyms,
+      word_family: item.word_family,
+      common_collocations: item.common_collocations,
+      business_example: item.business_example,
+      daily_life_example: item.daily_life_example,
+      interview_example: item.interview_example,
+      example_sentence: item.daily_life_example,
+      related_concepts: item.related_concepts,
+      common_mistakes: item.common_mistakes,
+      memory_tip: item.memory_tip,
+      reflection_question: item.reflection_question,
+      communication_challenge: item.communication_challenge,
+      status: 'published',
+      created_by: user.id,
+      approved_by: user.id
+    };
+
+    const { error } = await adminClient
+      .from('word_cards')
+      .upsert(payload, { onConflict: 'word' });
+
+    if (!error) insertedCount++;
+  }
+
+  return { success: true, count: insertedCount };
+}

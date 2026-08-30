@@ -3,10 +3,10 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
-import { Loader2, Wand2, Save, ArrowLeft, RefreshCw, CheckCircle, Upload } from "lucide-react";
+import { Loader2, Wand2, Save, ArrowLeft, RefreshCw, CheckCircle, Upload, Sparkles, Database } from "lucide-react";
 import { Suspense, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { generateAIWordAction } from "@/app/actions/admin";
+import { generateAIWordAction, bulkSeed100CorporateWords } from "@/app/actions/admin";
 import { createClient } from "@/utils/supabase/client";
 
 function WordEditorContent() {
@@ -16,6 +16,7 @@ function WordEditorContent() {
 
   const [loading, setLoading] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isBulkSeeding, setIsBulkSeeding] = useState(false);
   const [saving, setSaving] = useState(false);
   
   // Base fields
@@ -107,6 +108,20 @@ function WordEditorContent() {
     }
   };
 
+  const handleBulkSeed = async () => {
+    if (!confirm("This will seed 100 enterprise corporate words with all 16 rich pedagogical fields directly into your Word Vault. Continue?")) return;
+    setIsBulkSeeding(true);
+    try {
+      const res = await bulkSeed100CorporateWords();
+      alert(`🎉 Success! Populated ${res.count} words with all 16 rich fields into the Word Vault!`);
+      router.push('/admin/dashboard');
+    } catch (e: any) {
+      alert("Failed to bulk seed: " + e.message);
+    } finally {
+      setIsBulkSeeding(false);
+    }
+  };
+
   const handleSave = async (newStatus: string) => {
     setSaving(true);
     try {
@@ -125,7 +140,19 @@ function WordEditorContent() {
         await supabase.from("word_cards").update(payload).eq("id", editId);
       } else {
         const { data, error } = await supabase.from("word_cards").insert([payload]).select().single();
-        if (error) throw error;
+        if (error) {
+          if (error.code === '23505' || error.message?.includes('duplicate key') || error.message?.includes('word_cards_word_key')) {
+            const { data: existing } = await supabase.from("word_cards").select("id").eq("word", word).single();
+            if (existing) {
+              await supabase.from("word_cards").update(payload).eq("id", existing.id);
+              router.replace(`/admin/words?id=${existing.id}`);
+              setStatus(newStatus);
+              alert(`Updated existing word "${word}" successfully!`);
+              return;
+            }
+          }
+          throw error;
+        }
         // Redirect to edit mode
         if (data) {
           router.replace(`/admin/words?id=${data.id}`);
@@ -275,6 +302,24 @@ function WordEditorContent() {
                 className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/20 rounded-xl transition-colors font-medium text-sm"
               >
                 <Upload className="w-4 h-4" /> Approve & Publish
+              </button>
+            </PremiumCard>
+
+            <PremiumCard className="p-6 space-y-4 border-l-4 border-l-primary bg-primary/5">
+              <div className="flex items-center gap-2">
+                <Database className="w-5 h-5 text-primary" />
+                <h2 className="text-base font-bold">100-Day Semester Vault</h2>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Automatically seed 100 enterprise corporate vocabulary words across 3 levels with all 16 rich pedagogical fields directly into your vault.
+              </p>
+              <button 
+                onClick={handleBulkSeed}
+                disabled={isBulkSeeding}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl transition-all font-bold text-sm shadow-lg shadow-primary/20"
+              >
+                {isBulkSeeding ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+                {isBulkSeeding ? "Seeding 100 Words..." : "🚀 AI Bulk Seed 100 Words"}
               </button>
             </PremiumCard>
           </div>

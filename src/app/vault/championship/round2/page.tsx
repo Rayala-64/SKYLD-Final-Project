@@ -5,7 +5,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import Link from "next/link";
-import { ArrowLeft, CheckCircle2, Users, Crown, Video, Sparkles, AlertCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle2, Users, Crown, Video, Sparkles, AlertCircle, Clock } from "lucide-react";
 import { PodVideoUploader } from "@/components/video/PodVideoUploader";
 import { getPodChallengeStatus, submitPodChallenge } from "@/app/actions/championships";
 import { getActiveChallenge } from "@/app/actions/championship_admin";
@@ -113,10 +113,15 @@ export default function Round2Challenge() {
 
             {isLeader ? (
               <PremiumCard className="p-8 md:p-10 glass-card border border-amber-500/30 shadow-xl">
-                <div className="flex items-center gap-2 mb-4">
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                   <span className="text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-500 px-3 py-1 rounded-full border border-amber-500/30 flex items-center gap-1.5">
                     <Crown className="w-3.5 h-3.5" /> Pod Leader Uploader
                   </span>
+                  {challenge?.championship_weeks?.end_date && (
+                    <span className="text-xs font-bold px-3 py-1 rounded-full border border-primary/30 bg-primary/10 text-primary flex items-center gap-1.5">
+                      <Clock className="w-3.5 h-3.5" /> Deadline: {new Date(challenge.championship_weeks.end_date).toLocaleDateString()}
+                    </span>
+                  )}
                 </div>
                 
                 <div className="mb-6">

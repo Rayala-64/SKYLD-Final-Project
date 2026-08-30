@@ -19,7 +19,6 @@ export default function LibraryPage() {
   
   // Data state
   const [learnedWords, setLearnedWords] = useState<any[]>([]);
-  const [allVaultWords, setAllVaultWords] = useState<any[]>([]);
 
   const supabase = createClient();
 
@@ -36,7 +35,6 @@ export default function LibraryPage() {
           .select("*")
           .order("created_at", { ascending: false });
 
-        setAllVaultWords(allWords || []);
         const wordMap = new Map((allWords || []).map((w: any) => [w.id, w]));
 
         // 2. Fetch daily rituals for the logged-in student
@@ -71,9 +69,7 @@ export default function LibraryPage() {
     loadLibrary();
   }, []);
 
-  const displayList = activeTab === "MY_WORDS" ? learnedWords : allVaultWords;
-
-  const filteredWords = displayList.filter((item: any) => {
+  const filteredWords = learnedWords.filter((item: any) => {
     const query = searchQuery.toLowerCase();
     const word = (item.word || "").toLowerCase();
     const meaning = (item.meaning || item.definition || "").toLowerCase();
@@ -90,35 +86,15 @@ export default function LibraryPage() {
           <div>
             <h1 className="text-4xl md:text-5xl font-heading font-bold text-foreground flex items-center gap-4">
               <BookMarked className="w-10 h-10 text-primary" />
-              Word Vault Library
+              My Mastered Word Vault
             </h1>
             <p className="text-muted-foreground mt-2 text-lg">
-              Your personal library of mastered vocabulary and communication skills.
+              Your personal library of mastered vocabulary, pronunciation guides, and corporate communication skills.
             </p>
           </div>
 
-          {/* Tab Selector */}
-          <div className="flex bg-muted/40 p-1 rounded-2xl border border-border/50">
-            <button
-              onClick={() => setActiveTab("MY_WORDS")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
-                activeTab === "MY_WORDS"
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Star className="w-4 h-4" /> My Mastered Words ({learnedWords.length})
-            </button>
-            <button
-              onClick={() => setActiveTab("ALL_VAULT")}
-              className={`px-5 py-2.5 rounded-xl font-semibold text-sm transition-all flex items-center gap-2 ${
-                activeTab === "ALL_VAULT"
-                  ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              <Globe className="w-4 h-4" /> Global Vault ({allVaultWords.length})
-            </button>
+          <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-4 py-2 rounded-2xl text-sm font-bold">
+            <CheckCircle2 className="w-4 h-4" /> {learnedWords.length} Words in 100-Day History
           </div>
         </div>
 
@@ -130,7 +106,7 @@ export default function LibraryPage() {
               type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by word, definition, or business context..." 
+              placeholder="Search your mastered words by keyword, definition, or business context..." 
               className="w-full pl-10 pr-4 py-3.5 rounded-2xl border border-border/50 bg-card/50 backdrop-blur-sm focus:ring-2 focus:ring-primary focus:outline-none transition-shadow text-foreground placeholder:text-muted-foreground"
             />
           </div>
@@ -180,19 +156,13 @@ export default function LibraryPage() {
                         )}
                       </div>
                       
-                      {activeTab === "MY_WORDS" ? (
-                        isMastered ? (
-                          <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
-                            <CheckCircle2 className="w-3 h-3" /> MASTERED
-                          </span>
-                        ) : (
-                          <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
-                            <Clock className="w-3 h-3" /> IN PROGRESS
-                          </span>
-                        )
+                      {isMastered ? (
+                        <span className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> MASTERED
+                        </span>
                       ) : (
-                        <span className="bg-primary/10 text-primary border border-primary/20 px-2 py-1 rounded-lg text-xs font-bold">
-                          {item.word_type || "VOCAB"}
+                        <span className="bg-amber-500/10 text-amber-400 border border-amber-500/20 px-2 py-1 rounded-lg text-xs font-bold flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> IN PROGRESS
                         </span>
                       )}
                     </div>

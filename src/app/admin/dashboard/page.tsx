@@ -26,6 +26,7 @@ export default function AdminDashboard() {
   // Championship State
   const [cTheme, setCTheme] = useState("Innovation & Technology");
   const [cTitle, setCTitle] = useState("Week 3 Challenge");
+  const [cDeadline, setCDeadline] = useState(new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0]);
   const [cTask, setCTask] = useState("Present a 16-minute seamless story as a Pod. Each member must speak for 2 minutes on how emerging AI tools impact your local community. Ensure smooth transitions between speakers.");
   const [cRules, setCRules] = useState("Only one submission per Pod.\nAll members must participate.\nEvaluated by Peer Pods, Mentors, and Faculty.");
   const [isLaunching, setIsLaunching] = useState(false);
@@ -583,6 +584,13 @@ export default function AdminDashboard() {
                   <input type="text" value={cTitle} onChange={e => setCTitle(e.target.value)} className="w-full bg-background/50 border border-border rounded-xl p-4 focus:ring-2 focus:ring-primary/50 outline-none" />
                 </div>
                 <div>
+                  <label className="block text-sm font-bold text-muted-foreground mb-2 flex items-center justify-between">
+                    <span>Submission Deadline (End Date)</span>
+                    <span className="text-xs text-primary font-normal">All pod submissions lock automatically after this date</span>
+                  </label>
+                  <input type="date" value={cDeadline} onChange={e => setCDeadline(e.target.value)} className="w-full bg-background/50 border border-border rounded-xl p-4 focus:ring-2 focus:ring-primary/50 outline-none" />
+                </div>
+                <div>
                   <label className="block text-sm font-bold text-muted-foreground mb-2">Task Description</label>
                   <textarea value={cTask} onChange={e => setCTask(e.target.value)} className="w-full bg-background/50 border border-border rounded-xl p-4 min-h-[120px] focus:ring-2 focus:ring-primary/50 outline-none resize-none" />
                 </div>
@@ -597,7 +605,7 @@ export default function AdminDashboard() {
                   onClick={async () => {
                     setIsLaunching(true);
                     try {
-                      await launchGlobalWeeklyChallenge(cTheme, cTitle, cTask, cRules);
+                      await launchGlobalWeeklyChallenge(cTheme, cTitle, cTask, cRules, cDeadline);
                       alert("Challenge successfully launched to all Pods!");
                     } catch (e: any) {
                       alert(e.message);

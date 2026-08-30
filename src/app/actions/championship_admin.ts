@@ -2,7 +2,7 @@
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { createClient } from "@/utils/supabase/server";
 
-export async function launchGlobalWeeklyChallenge(theme: string, title: string, task: string, rules: string) {
+export async function launchGlobalWeeklyChallenge(theme: string, title: string, task: string, rules: string, deadlineDate?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
@@ -14,6 +14,12 @@ export async function launchGlobalWeeklyChallenge(theme: string, title: string, 
 
   const { data: profile } = await adminClient.from('users').select('role').eq('id', user.id).single();
   if (profile?.role !== 'admin') throw new Error("Unauthorized");
+
+  // Auto-Archive: Deactivate ALL previous active challenges across all weeks
+  await adminClient
+    .from('weekly_challenges')
+    .update({ active: false })
+    .eq('active', true);
 
   // 1. Get or create a Global Championship
   let championshipId;
@@ -51,52 +57,30 @@ export async function launchGlobalWeeklyChallenge(theme: string, title: string, 
 
   let weekNumber = 1;
   if (existingWeeks && existingWeeks.length > 0) {
-    // Check if there is an active challenge for the latest week. If so, increment week number.
-    const latestWeek = existingWeeks[0];
-    const { data: latestChallenge } = await adminClient
-      .from('weekly_challenges')
-      .select('id, active')
-      .eq('championship_week_id', latestWeek.id)
-      .eq('active', true)
-      .maybeSingle();
-      
-    if (latestChallenge) {
-      // Deactivate the old challenge
-      await adminClient.from('weekly_challenges').update({ active: false }).eq('id', latestChallenge.id);
-      weekNumber = latestWeek.week_number + 1;
-    } else {
-      weekNumber = latestWeek.week_number;
-    }
+    weekNumber = existingWeeks[0].week_number + 1;
   }
 
-  // Create new week if we incremented or if it's the first
-  let weekId;
-  const { data: existingCurrentWeek } = await adminClient
+  const calculatedEndDate = deadlineDate 
+    ? new Date(deadlineDate).toISOString().split('T')[0]
+    : new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0];
+
+  // Create new week
+  const { data: newWeek, error: wErr } = await adminClient
     .from('championship_weeks')
+    .insert({
+      championship_id: championshipId,
+      week_number: weekNumber,
+      start_date: new Date().toISOString().split('T')[0],
+      end_date: calculatedEndDate,
+      status: 'ACTIVE'
+    })
     .select('id')
-    .eq('championship_id', championshipId)
-    .eq('week_number', weekNumber)
-    .maybeSingle();
-    
-  if (existingCurrentWeek) {
-    weekId = existingCurrentWeek.id;
-  } else {
-    const { data: newWeek, error: wErr } = await adminClient
-      .from('championship_weeks')
-      .insert({
-        championship_id: championshipId,
-        week_number: weekNumber,
-        start_date: new Date().toISOString().split('T')[0],
-        end_date: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0],
-        status: 'ACTIVE'
-      })
-      .select('id')
-      .single();
-    if (wErr) throw new Error(`Failed to create week: ${wErr.message}`);
-    weekId = newWeek.id;
-  }
+    .single();
 
-  // 3. Create the challenge
+  if (wErr) throw new Error(`Failed to create week: ${wErr.message}`);
+  const weekId = newWeek.id;
+
+  // 3. Create the active challenge
   const { data: newChallenge, error: chErr } = await adminClient
     .from('weekly_challenges')
     .insert({
@@ -136,7 +120,8 @@ export async function getActiveChallenge() {
       description,
       instructions,
       championship_week_id,
-      championship_weeks ( week_number )
+      created_at,
+      championship_weeks ( week_number, start_date, end_date )
     `)
     .eq('active', true)
     .order('created_at', { ascending: false })
