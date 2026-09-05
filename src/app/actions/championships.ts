@@ -92,6 +92,32 @@ export async function submitMasterEvaluation(championshipWeekId: string, podId: 
     throw new Error(error.message);
   }
 
+  // Notify all members of the pod
+  try {
+    const adminClient = createAdminClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+      process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    );
+    const { data: podStudents } = await adminClient
+      .from('users')
+      .select('id')
+      .eq('pod_id', podId);
+
+    if (podStudents && podStudents.length > 0) {
+      const notifRows = podStudents.map((s) => ({
+        user_id: s.id,
+        type: 'MASTER_EVALUATION_COMPLETED',
+        title: '🏆 Master Mentor Evaluation Published!',
+        message: `Your Pod received a score of ${score}/10 on the Weekly Championship presentation.`,
+        action_url: '/championships',
+        created_at: new Date().toISOString()
+      }));
+      await adminClient.from('notifications').insert(notifRows);
+    }
+  } catch (notifErr) {
+    console.error("Non-blocking notification error:", notifErr);
+  }
+
   return { success: true };
 }
 

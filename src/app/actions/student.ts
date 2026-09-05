@@ -63,13 +63,18 @@ export async function getStudentDashboardData(targetUserId?: string): Promise<St
 
   const fetchUserId = targetUserId || user.id;
 
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  );
+
   const [profileRes, ritualRes, submissionsRes, streakRes] = await Promise.all([
-    supabase.from("users").select("full_name, level, pod_id, total_xp").eq("id", fetchUserId).single(),
+    adminClient.from("users").select("full_name, level, pod_id, total_xp").eq("id", fetchUserId).single(),
     (async () => {
       if (fetchUserId !== user.id) {
-        const { data: ritual } = await supabase.from("daily_rituals").select("*").eq("student_id", fetchUserId).eq("ritual_date", todayStr).maybeSingle();
+        const { data: ritual } = await adminClient.from("daily_rituals").select("*").eq("student_id", fetchUserId).eq("ritual_date", todayStr).maybeSingle();
         if (ritual) {
-           const { data: wc } = await supabase.from("word_cards").select("*").eq("id", ritual.word_card_id).single();
+           const { data: wc } = await adminClient.from("word_cards").select("*").eq("id", ritual.word_card_id).single();
            return { data: wc, isCompleted: ritual.status === 'COMPLETED' };
         }
         return { data: null, isCompleted: false };
@@ -82,17 +87,11 @@ export async function getStudentDashboardData(targetUserId?: string): Promise<St
         return { data: null, isCompleted: false };
       }
     })(),
-    supabase.from("submissions").select("*").eq("user_id", fetchUserId),
-    supabase.from("streaks").select("current_streak").eq("user_id", fetchUserId).single()
+    adminClient.from("submissions").select("*").eq("user_id", fetchUserId),
+    adminClient.from("streaks").select("current_streak").eq("user_id", fetchUserId).maybeSingle()
   ]);
 
   const profile = profileRes.data;
-
-  // Create admin client for cross-user pod fetches
-  const adminClient = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-  );
 
   // Fetch Championship Leaderboard
   // Top 10
@@ -222,7 +221,7 @@ export async function getStudentDashboardData(targetUserId?: string): Promise<St
     .limit(3);
 
   // Fetch Badges
-  const { data: badgesData } = await supabase
+  const { data: badgesData } = await adminClient
     .from("user_badges")
     .select("id, earned_at, badges(id, name, icon_name)")
     .eq("user_id", fetchUserId)

@@ -3,10 +3,10 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
-import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, BookOpen, Plus, Loader2, Edit2, Trash2, Trophy, CheckCircle2, Clock, Eye } from "lucide-react";
+import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, BookOpen, Plus, Loader2, Edit2, Trash2, Trophy, CheckCircle2, Clock, Eye, Megaphone, Send } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { getAdminDashboardData, deleteWordCard, generateInviteCode } from "@/app/actions/admin";
+import { getAdminDashboardData, deleteWordCard, generateInviteCode, createAnnouncement } from "@/app/actions/admin";
 import { launchGlobalWeeklyChallenge } from "@/app/actions/championship_admin";
 import type { AdminDashboardData } from "@/types/admin";
 
@@ -30,6 +30,36 @@ export default function AdminDashboard() {
   const [cTask, setCTask] = useState("Present a 16-minute seamless story as a Pod. Each member must speak for 2 minutes on how emerging AI tools impact your local community. Ensure smooth transitions between speakers.");
   const [cRules, setCRules] = useState("Only one submission per Pod.\nAll members must participate.\nEvaluated by Peer Pods, Mentors, and Faculty.");
   const [isLaunching, setIsLaunching] = useState(false);
+
+  // Announcement Broadcast State
+  const [broadcastTitle, setBroadcastTitle] = useState("");
+  const [broadcastMessage, setBroadcastMessage] = useState("");
+  const [broadcastScope, setBroadcastScope] = useState<"global" | "pod">("global");
+  const [broadcastPodId, setBroadcastPodId] = useState("");
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastSuccess, setBroadcastSuccess] = useState(false);
+
+  const handlePostBroadcast = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!broadcastTitle.trim() || !broadcastMessage.trim()) {
+      alert("Please provide both a title and message for the announcement.");
+      return;
+    }
+    setIsBroadcasting(true);
+    setBroadcastSuccess(false);
+    try {
+      await createAnnouncement(broadcastTitle, broadcastMessage, broadcastScope, broadcastPodId || undefined);
+      setBroadcastSuccess(true);
+      setBroadcastTitle("");
+      setBroadcastMessage("");
+      setTimeout(() => setBroadcastSuccess(false), 5000);
+      alert("Broadcast announcement successfully sent to all target users!");
+    } catch (err: any) {
+      alert(err.message || "Failed to post broadcast");
+    } finally {
+      setIsBroadcasting(false);
+    }
+  };
 
   const loadData = () => {
     setLoading(true);
@@ -289,6 +319,100 @@ export default function AdminDashboard() {
               </PremiumCard>
             </div>
             
+            {/* Announcements & Broadcasts Composer */}
+            <PremiumCard className="p-6 border-l-4 border-l-primary bg-gradient-to-r from-primary/5 via-card to-card">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-4 border-b border-border/40 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-primary/10 text-primary rounded-xl">
+                    <Megaphone className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold">Announcements & Broadcasts</h2>
+                    <p className="text-xs text-muted-foreground">Send real-time alerts to all students and mentors or target a specific pod</p>
+                  </div>
+                </div>
+                {broadcastSuccess && (
+                  <span className="text-xs bg-success/20 text-success font-bold px-3 py-1 rounded-full border border-success/30 flex items-center gap-1 animate-in fade-in">
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Broadcast Sent Successfully!
+                  </span>
+                )}
+              </div>
+
+              <form onSubmit={handlePostBroadcast} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1">Announcement Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Championship Finals This Sunday!"
+                      value={broadcastTitle}
+                      onChange={(e) => setBroadcastTitle(e.target.value)}
+                      className="w-full bg-background/60 border border-border/70 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1">Target Audience</label>
+                    <select
+                      value={broadcastScope}
+                      onChange={(e) => setBroadcastScope(e.target.value as "global" | "pod")}
+                      className="w-full bg-background/60 border border-border/70 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                    >
+                      <option value="global">Global (All Students & Mentors)</option>
+                      <option value="pod">Specific Pod Only</option>
+                    </select>
+                  </div>
+                </div>
+
+                {broadcastScope === "pod" && (
+                  <div>
+                    <label className="block text-xs font-semibold text-muted-foreground mb-1">Select Target Pod</label>
+                    <select
+                      value={broadcastPodId}
+                      onChange={(e) => setBroadcastPodId(e.target.value)}
+                      className="w-full bg-background/60 border border-border/70 rounded-xl px-3 py-2.5 text-sm focus:ring-2 focus:ring-primary/50 outline-none"
+                    >
+                      <option value="">Select a Pod...</option>
+                      {data?.pods?.map((pod) => (
+                        <option key={pod.id} value={pod.id}>
+                          {pod.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block text-xs font-semibold text-muted-foreground mb-1">Broadcast Message</label>
+                  <textarea
+                    placeholder="e.g. Make sure all pod presentations are uploaded by 8 PM IST."
+                    value={broadcastMessage}
+                    onChange={(e) => setBroadcastMessage(e.target.value)}
+                    rows={2}
+                    className="w-full bg-background/60 border border-border/70 rounded-xl p-3 text-sm focus:ring-2 focus:ring-primary/50 outline-none resize-none"
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <PremiumButton
+                    type="submit"
+                    disabled={isBroadcasting}
+                    className="px-6 font-semibold flex items-center gap-2"
+                  >
+                    {isBroadcasting ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" /> Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Send className="w-4 h-4" /> Post Broadcast Announcement
+                      </>
+                    )}
+                  </PremiumButton>
+                </div>
+              </form>
+            </PremiumCard>
+
             {/* Unified Live Review & Anti-Copying Tracker Card */}
             <PremiumCard className="p-6">
               <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-4">

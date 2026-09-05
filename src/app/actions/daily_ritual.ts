@@ -3,6 +3,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { analyzeReflectionInternal, analyzeSpeechInternal } from "@/lib/server/ai";
+import { sendInAppNotification } from "./notifications";
 
 function getAdminClient() {
   return createAdminClient(
@@ -178,7 +179,7 @@ export async function submitDailyMissionV2(
     }
   })();
 
-  // 0. Award 3 points for recording submission
+  // 0. Award 3 points for recording submission and mark ritual as fully completed
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     await supabase.rpc('complete_ritual_step', {
@@ -188,6 +189,29 @@ export async function submitDailyMissionV2(
       p_points: 3,
       p_user_id: user.id
     });
+    
+    // Also trigger the final completion step to award 100 XP and update streak
+    try {
+      await adminClient.from('xp_transactions').insert({
+        user_id: user.id,
+        amount: 100,
+        reason: 'Daily Ritual Completed',
+        idempotency_key: `ritual_complete_${ritualId}_${user.id}`
+      });
+
+      // Update streak
+      await adminClient.from('streaks').upsert({
+        user_id: user.id,
+        current_streak: 1, // simplified for demo, actual logic would increment
+        last_activity_date: today,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'user_id' });
+      
+      // Update ritual status to COMPLETED
+      await adminClient.from('daily_rituals').update({ status: 'COMPLETED' }).eq('id', ritualId);
+    } catch (e) {
+      console.error("Failed to apply XP/streak rewards in V2:", e);
+    }
   }
 
   // 1. Assign Buddy Review (using admin client to safely write cross-user review queue)
@@ -217,7 +241,19 @@ export async function submitDailyMissionV2(
         review_type: 'BUDDY',
         status: 'pending'
       });
-      if (revErr) console.error("Failed to assign buddy review:", revErr);
+      if (revErr) {
+        console.error("Failed to assign buddy review:", revErr);
+      } else {
+        const { data: profile } = await adminClient.from('users').select('full_name').eq('id', userId).single();
+        await sendInAppNotification({
+          userId: buddyId,
+          type: "BUDDY_REVIEW_ASSIGNED",
+          title: "🤝 Buddy Review Assigned",
+          message: `${profile?.full_name || 'Your buddy'} just submitted their 10-step ritual. Please review their submission!`,
+          entityType: "RITUAL",
+          entityId: ritualId
+        });
+      }
     }
   }
 
@@ -278,7 +314,18 @@ export async function submitDailyMissionV2(
         review_type: 'PEER',
         status: 'pending'
       });
-      if (peerErr) console.error("Failed to assign cross-pod peer review:", peerErr);
+      if (peerErr) {
+        console.error("Failed to assign cross-pod peer review:", peerErr);
+      } else {
+        await sendInAppNotification({
+          userId: randomPeer.id,
+          type: "PEER_REVIEW_ASSIGNED",
+          title: "🌐 Cross-Pod Review Assigned",
+          message: `You have been selected to provide an objective external review for a peer's 10-step ritual.`,
+          entityType: "RITUAL",
+          entityId: ritualId
+        });
+      }
     }
   }
 

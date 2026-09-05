@@ -107,12 +107,6 @@ export default async function PodPage() {
                       <span className="text-xs font-semibold text-primary mr-2">{student.xp.toLocaleString()} XP</span>
                       {currentUserId && currentUserId !== student.id && (
                         <>
-                          <Link 
-                            href={`/vault/dashboard/buddy/${student.id}`}
-                            className="text-xs px-2 py-1 bg-secondary/10 text-secondary hover:bg-secondary/20 rounded font-medium"
-                          >
-                            View
-                          </Link>
                           <SelectBuddyButton buddyId={student.id} />
                         </>
                       )}

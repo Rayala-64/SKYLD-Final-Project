@@ -122,19 +122,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="p-4 border-t border-border/40">
-          <div className="flex items-center gap-3 px-2 py-2 mb-2 justify-between">
-            <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10 border border-border/50 ring-2 ring-primary/20">
-                <AvatarFallback>{userProfile ? (userProfile.full_name || "??").substring(0, 2).toUpperCase() : "..."}</AvatarFallback>
-              </Avatar>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">{userProfile ? (userProfile.full_name || "Unknown User") : "Loading..."}</span>
-                <span className="text-xs text-muted-foreground">Level {userProfile ? (userProfile.level || 1) : "..."}</span>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <ThemeToggle className="w-8 h-8 rounded-lg p-1.5" />
-              <NotificationBell />
+          <div className="flex items-center gap-3 px-2 py-2 mb-2">
+            <Avatar className="w-10 h-10 border border-border/50 ring-2 ring-primary/20">
+              <AvatarFallback>{userProfile ? (userProfile.full_name || "??").substring(0, 2).toUpperCase() : "..."}</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-sm font-medium truncate">{userProfile ? (userProfile.full_name || "Unknown User") : "Loading..."}</span>
+              <span className="text-xs text-muted-foreground">Level {userProfile ? (userProfile.level || 1) : "..."}</span>
             </div>
           </div>
           <nav className="space-y-1">
@@ -156,18 +150,29 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 md:hidden flex items-center justify-between px-4 border-b border-border/40 bg-background/80 backdrop-blur-lg sticky top-0 z-10">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-heading font-bold text-lg shadow-lg">
-              S
+        <header className="h-16 flex items-center justify-between px-4 md:px-8 border-b border-border/40 bg-background/80 backdrop-blur-lg sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="md:hidden flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-heading font-bold text-lg shadow-lg">
+                S
+              </div>
+            </Link>
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-heading font-bold text-foreground tracking-tight">SKYLD</span>
+              <span className="text-muted-foreground/50">/</span>
+              <span className="capitalize font-medium text-foreground/80">
+                {pathname?.split('/')[2] || pathname?.split('/')[1] || 'Dashboard'}
+              </span>
             </div>
-          </Link>
+          </div>
+
           <div className="flex items-center gap-2">
-            <ThemeToggle className="w-8 h-8 rounded-lg p-1.5" />
-            <NotificationBell />
+            <ThemeToggle className="w-9 h-9 rounded-xl p-2" />
+            <NotificationBell placement="header" />
             <Button
               variant="ghost"
               size="icon"
+              className="md:hidden"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <Menu className="w-6 h-6" />

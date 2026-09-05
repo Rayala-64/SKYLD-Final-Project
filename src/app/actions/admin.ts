@@ -294,21 +294,49 @@ export async function createAnnouncement(title: string, body: string, scope: 'gl
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
   
-  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
-  if (!profile || profile.role !== 'admin') throw new Error("Unauthorized");
+  const adminClient = createAdminClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "",
+    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  );
 
-  const { error } = await supabase.from('announcements').insert({
+  const { data: profile } = await adminClient.from('users').select('role').eq('id', user.id).single();
+  if (!profile || profile.role !== 'admin') throw new Error("Unauthorized: Admin access required.");
+
+  const { error } = await adminClient.from('announcements').insert({
     title,
     body,
     scope,
-    pod_id: scope === 'pod' ? pod_id : null,
+    pod_id: scope === 'pod' && pod_id ? pod_id : null,
     author_id: user.id
   });
 
   if (error) {
     console.error("Failed to create announcement:", error);
-    throw new Error("Unable to create announcement.");
+    throw new Error(`Unable to create announcement: ${error.message}`);
   }
+
+  // Broadcast in-app notifications to targeted users
+  try {
+    let query = adminClient.from('users').select('id');
+    if (scope === 'pod' && pod_id) {
+      query = query.eq('pod_id', pod_id);
+    }
+    const { data: recipients } = await query;
+    if (recipients && recipients.length > 0) {
+      const notifRows = recipients.map((r: { id: string }) => ({
+        user_id: r.id,
+        type: 'SYSTEM',
+        title: `📢 Announcement: ${title}`,
+        message: body,
+        entity_type: 'ANNOUNCEMENT',
+        created_at: new Date().toISOString()
+      }));
+      await adminClient.from('notifications').insert(notifRows);
+    }
+  } catch (notifErr) {
+    console.error("Non-blocking announcement notification error:", notifErr);
+  }
+
   return { success: true };
 }
 
