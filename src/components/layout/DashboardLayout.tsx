@@ -179,8 +179,47 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
             </Button>
           </div>
         </header>
+
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden fixed inset-0 z-20 bg-background/95 backdrop-blur-md pt-[64px] flex flex-col h-screen">
+            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+              {sidebarLinks.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link key={item.name} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                      }`}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="p-4 border-t border-border/40 pb-safe bg-background">
+              <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+                  <Settings className="w-5 h-5" />
+                  <span className="text-sm font-medium">Settings</span>
+                </div>
+              </Link>
+              <form action={logout} className="w-full mt-2">
+                <button type="submit" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-left">
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-sm font-medium">Log out</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
         
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto relative z-10">
           <FadeIn className="h-full p-4 md:p-8" delay={0.1}>
             {children}
           </FadeIn>
