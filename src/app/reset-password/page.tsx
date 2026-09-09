@@ -1,24 +1,72 @@
-import { updatePassword } from "@/app/actions/auth";
+"use client";
+
+import { useState, useEffect } from "react";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { AlertTriangle, KeyRound, ShieldCheck } from "lucide-react";
-import { redirect } from "next/navigation";
-import { createClient } from "@/utils/supabase/server";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
-export default async function ResetPasswordPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
-  const resolvedSearchParams = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+export default function ResetPasswordPage() {
+  const router = useRouter();
+  const supabase = createClient();
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // Protect the route: Only users who arrived via a valid recovery link (and are thus authenticated) can see this page.
-  if (!user) {
-    redirect("/login?error=" + encodeURIComponent("Invalid or expired password reset session. Please request a new link."));
-  }
+  useEffect(() => {
+    // The createBrowserClient automatically parses the #access_token from the URL hash 
+    // and establishes the session when using Supabase Implicit Flow.
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (!session) {
+        // If there's no session and no hash in the URL, the link is invalid
+        if (typeof window !== "undefined" && !window.location.hash.includes('type=recovery')) {
+           router.push("/login?error=" + encodeURIComponent("Invalid or expired password reset session. Please request a new link."));
+        }
+      }
+    });
+  }, [router, supabase.auth]);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    
+    const formData = new FormData(e.currentTarget);
+    const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
+
+    if (!password || password.length < 6) {
+      setError("Password must be at least 6 characters");
+      setLoading(false);
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match");
+      setLoading(false);
+      return;
+    }
+
+    // Update the password using the client-side session established by the email link
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: password
+    });
+
+    if (updateError) {
+      console.error("Update password error:", updateError);
+      setError(updateError.message);
+      setLoading(false);
+    } else {
+      // Once updated, sign out of the recovery session and redirect to login
+      await supabase.auth.signOut();
+      router.push("/login?message=" + encodeURIComponent("Password updated successfully. Please log in with your new password."));
+    }
+  };
 
   return (
     <div className="min-h-screen flex bg-background relative overflow-hidden items-center justify-center p-6">
@@ -42,14 +90,14 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
             </p>
           </div>
 
-          {resolvedSearchParams.error && (
+          {error && (
             <FadeIn className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive font-medium leading-relaxed">{resolvedSearchParams.error}</p>
+              <p className="text-sm text-destructive font-medium leading-relaxed">{error}</p>
             </FadeIn>
           )}
 
-          <form action={updatePassword} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <div className="space-y-2">
               <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">New Password</Label>
               <Input id="password" name="password" type="password" required minLength={6} placeholder="At least 6 characters" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
@@ -60,8 +108,8 @@ export default async function ResetPasswordPage({ searchParams }: { searchParams
               <Input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} placeholder="Repeat new password" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
             </div>
             
-            <PremiumButton type="submit" className="w-full h-12 mt-6 text-base shadow-lg glow-primary">
-              <KeyRound className="w-4 h-4 mr-2" /> Update Password
+            <PremiumButton type="submit" disabled={loading} className="w-full h-12 mt-6 text-base shadow-lg glow-primary">
+              <KeyRound className="w-4 h-4 mr-2" /> {loading ? "Updating..." : "Update Password"}
             </PremiumButton>
           </form>
         </PremiumCard>
