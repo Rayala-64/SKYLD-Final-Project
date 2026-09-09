@@ -5,12 +5,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FadeIn } from "@/components/animations/FadeIn";
 import Link from "next/link";
-import { ArrowRight, Lock, AlertTriangle } from "lucide-react";
+import { ArrowRight, Lock, AlertTriangle, CheckCircle2 } from "lucide-react";
 
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 import { QuickDemoAccounts } from "@/components/auth/QuickDemoAccounts";
 
-export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ error?: string, message?: string }> }) {
   const resolvedSearchParams = await searchParams;
   return (
     <div className="min-h-screen flex bg-background relative overflow-hidden">
@@ -49,6 +49,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               </FadeIn>
             )}
 
+            {resolvedSearchParams.message && (
+              <FadeIn className="mb-6 p-4 rounded-lg bg-success/10 border border-success/20 flex items-start gap-3">
+                <CheckCircle2 className="w-5 h-5 text-success shrink-0 mt-0.5" />
+                <p className="text-sm text-success font-medium leading-relaxed">{resolvedSearchParams.message}</p>
+              </FadeIn>
+            )}
+
             <form action={login} className="space-y-5">
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Email Address</Label>
@@ -57,6 +64,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
                   <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Password</Label>
+                  <Link href="/forgot-password" className="text-xs font-medium text-primary hover:text-primary/80 transition-colors">Forgot Password?</Link>
                 </div>
                 <Input id="password" name="password" type="password" required placeholder="Enter your password" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
               </div>

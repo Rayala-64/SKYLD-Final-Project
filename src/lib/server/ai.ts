@@ -11,7 +11,7 @@ import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { z } from "zod";
 
 const ENABLED = process.env.AI_FEEDBACK_ENABLED !== "false";
-const MODEL_NAME = "gemini-3.5-flash-lite"; // High speed free tier eligible model
+const MODEL_NAME = process.env.NEXT_PUBLIC_AI_MODEL || "gemini-3.8-flash";
 
 // Initialize SDK
 const genAI = process.env.GEMINI_API_KEY ? new GoogleGenerativeAI(process.env.GEMINI_API_KEY) : null;

@@ -161,3 +161,60 @@ export async function logout() {
 
   redirect("/login");
 }
+
+export async function resetPassword(formData: FormData) {
+  const email = (formData.get("email") as string || "").trim().toLowerCase();
+  
+  if (!email) {
+    redirect("/forgot-password?error=" + encodeURIComponent("Email is required"));
+  }
+
+  const supabase = await createClient();
+  
+  // Create an absolute URL for the callback
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
+  const redirectUrl = `${origin}/auth/callback?next=/reset-password`;
+
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: redirectUrl,
+  });
+
+  if (error) {
+    console.error("Password reset error:", error);
+    // For security, we don't necessarily want to reveal if the email exists, 
+    // but we should pass along rate limit errors.
+    if (error.status === 429) {
+      redirect("/forgot-password?error=" + encodeURIComponent("Too many requests. Please try again later."));
+    }
+  }
+
+  // Redirect to a success state
+  redirect("/forgot-password?success=true");
+}
+
+export async function updatePassword(formData: FormData) {
+  const password = formData.get("password") as string;
+  const confirmPassword = formData.get("confirmPassword") as string;
+
+  if (!password || password.length < 6) {
+    redirect("/reset-password?error=" + encodeURIComponent("Password must be at least 6 characters"));
+  }
+
+  if (password !== confirmPassword) {
+    redirect("/reset-password?error=" + encodeURIComponent("Passwords do not match"));
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({
+    password: password
+  });
+
+  if (error) {
+    console.error("Update password error:", error);
+    redirect("/reset-password?error=" + encodeURIComponent(error.message));
+  }
+
+  // Once updated, sign out of the recovery session and redirect to login
+  await supabase.auth.signOut();
+  redirect("/login?message=" + encodeURIComponent("Password updated successfully. Please log in with your new password."));
+}
