@@ -213,7 +213,7 @@ export default function ReviewPage() {
                           <div>
                             <label className="block text-sm font-bold mb-2">1. Delivery & Vocabulary Strengths:</label>
                             <Textarea 
-                              placeholder="Evaluate their word precision, story clarity, and professional tone..."
+                              placeholder="Did they use the word naturally? Did they speak clearly? What did you like?..."
                               className="min-h-[90px] resize-none bg-background/50 border-primary/20"
                               value={strength}
                               onChange={e => setStrength(e.target.value)}
@@ -221,9 +221,9 @@ export default function ReviewPage() {
                           </div>
                           
                           <div>
-                            <label className="block text-sm font-bold mb-2">2. Corporate Placement / Interview Polish Tip:</label>
+                            <label className="block text-sm font-bold mb-2">2. Interview Polish Tip:</label>
                             <Textarea 
-                              placeholder="What is the #1 thing to improve for executive-level presentations?..."
+                              placeholder="If they said this in a real interview, what is one small thing they could improve?..."
                               className="min-h-[90px] resize-none bg-background/50 border-primary/20"
                               value={improvement}
                               onChange={e => setImprovement(e.target.value)}

@@ -151,7 +151,7 @@ export async function logout() {
   try {
     const cookieStore = await cookies();
     cookieStore.getAll().forEach((c) => {
-      if (c.name.startsWith("sb-") || c.name.includes("auth-token")) {
+      if (c.name.startsWith("sb-") || c.name.includes("auth-token") || c.name === "user-role") {
         cookieStore.delete(c.name);
       }
     });
