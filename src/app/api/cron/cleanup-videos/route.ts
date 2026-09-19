@@ -20,14 +20,15 @@ export async function POST(req: NextRequest) {
   let processedBatches = 0;
 
   while (Date.now() - startTime < maxExecutionTimeMs) {
-    // 1. Find submissions older than 30 days that still have a video_url
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    // 1. Find submissions older than the retention window that still have a video_url
+    const retentionDays = parseInt(process.env.VIDEO_RETENTION_DAYS || '30', 10);
+    const cutoffDate = new Date(Date.now() - retentionDays * 24 * 60 * 60 * 1000).toISOString();
     
     const { data: submissionsToCleanup, error: fetchError } = await adminClient
       .from('submissions')
       .select('id, video_url')
       .not('video_url', 'is', null)
-      .lt('created_at', thirtyDaysAgo)
+      .lt('created_at', cutoffDate)
       .limit(200); // Process in batches to avoid timeouts
 
     if (fetchError) {

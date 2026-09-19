@@ -21,12 +21,12 @@ export interface StudentDashboardData {
     challenge_text: string | null;
     isCompleted: boolean;
   } | null;
-  leaderboardPreview: Array<{
+  championshipLeaderboard: Array<{
     student_id: string;
-    full_name: string;
-    avatar_url: string | null;
-    xp: number;
-    pod_rank: number;
+    student_name: string;
+    total_score: number;
+    batch_rank: number;
+    is_current_user: boolean;
   }>;
   buddy: {
     id: string;
@@ -49,7 +49,9 @@ export interface StudentDashboardData {
   }>;
 }
 
-export async function getStudentDashboardData(): Promise<StudentDashboardData> {
+import { assignDailyWordForStudent } from "@/lib/server/word_assignment";
+
+export async function getStudentDashboardData(targetUserId?: string): Promise<StudentDashboardData> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
@@ -57,32 +59,52 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     throw new Error("Unauthorized");
   }
 
-  const [profileRes, wordCardsRes, submissionsRes, streakRes] = await Promise.all([
-    supabase.from("users").select("full_name, level, buddy_id, pod_id, total_xp").eq("id", user.id).single(),
-    (async () => {
-      const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
-      const res = await supabase.from("word_cards").select("*").eq("active_date", todayStr).single();
-      return res;
-    })(),
-    supabase.from("submissions").select("*").eq("user_id", user.id),
-    supabase.from("streaks").select("current_streak").eq("user_id", user.id).single()
-  ]);
+  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
 
-  const profile = profileRes.data;
+  const fetchUserId = targetUserId || user.id;
 
-  // Create admin client for cross-user pod fetches
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
     process.env.SUPABASE_SERVICE_ROLE_KEY || ""
   );
 
-  const podId = profile?.pod_id || '00000000-0000-0000-0000-000000000000';
-  const { data: leaderboardUsers } = await adminClient.from("users")
-    .select("id, full_name, total_xp")
-    .eq("role", "student")
-    .eq("pod_id", podId)
-    .order("total_xp", { ascending: false })
-    .limit(3);
+  const [profileRes, ritualRes, submissionsRes, streakRes] = await Promise.all([
+    adminClient.from("users").select("full_name, level, pod_id, total_xp").eq("id", fetchUserId).single(),
+    (async () => {
+      if (fetchUserId !== user.id) {
+        const { data: ritual } = await adminClient.from("daily_rituals").select("*").eq("student_id", fetchUserId).eq("ritual_date", todayStr).maybeSingle();
+        if (ritual) {
+           const { data: wc } = await adminClient.from("word_cards").select("*").eq("id", ritual.word_card_id).single();
+           return { data: wc, isCompleted: ritual.status === 'COMPLETED' };
+        }
+        return { data: null, isCompleted: false };
+      }
+      try {
+        const { wordCard, ritual } = await assignDailyWordForStudent(user.id, todayStr);
+        return { data: wordCard, isCompleted: ritual?.status === 'COMPLETED' };
+      } catch (e) {
+        console.error("Dashboard word assignment fallback error:", e);
+        return { data: null, isCompleted: false };
+      }
+    })(),
+    adminClient.from("submissions").select("*").eq("user_id", fetchUserId),
+    adminClient.from("streaks").select("current_streak").eq("user_id", fetchUserId).maybeSingle()
+  ]);
+
+  const profile = profileRes.data;
+
+  // Fetch Championship Leaderboard
+  // Top 10
+  const { data: topStudents } = await adminClient.from("championship_standings")
+    .select("student_id, student_name, total_score, batch_rank")
+    .order("batch_rank", { ascending: true })
+    .limit(10);
+    
+  // Current user / target user
+  const { data: currentUserStanding } = await adminClient.from("championship_standings")
+    .select("student_id, student_name, total_score, batch_rank")
+    .eq("student_id", fetchUserId)
+    .single();
 
   const submissions = submissionsRes.data || [];
   const total_xp = profile?.total_xp || 0;
@@ -130,30 +152,62 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     }
   }
 
-  const leaderboardPreview = (leaderboardUsers || []).map((u, index) => ({
-    student_id: u.id,
-    full_name: u.full_name,
-    avatar_url: null,
-    xp: u.total_xp || 0,
-    pod_rank: index + 1
-  }));
-
+  const championshipLeaderboard = [];
+  const topIds = new Set();
+  
+  if (topStudents) {
+    topStudents.forEach((student: any) => {
+      championshipLeaderboard.push({
+        ...student,
+        is_current_user: student.student_id === fetchUserId
+      });
+      topIds.add(student.student_id);
+    });
+  }
+  
+  if (currentUserStanding && !topIds.has(fetchUserId)) {
+    championshipLeaderboard.push({
+      ...currentUserStanding,
+      is_current_user: true
+    });
+  }
   let isCompleted = false;
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Kolkata' });
   const todaySubmission = submissions.find((s: any) => s.date === todayStr && s.status === 'submitted');
   if (todaySubmission) {
     isCompleted = true;
   }
 
   let buddy = null;
-  if (profile?.buddy_id) {
-    const { data: buddyProfile } = await supabase.from("users").select("full_name").eq("id", profile.buddy_id).single();
+  const { data: buddyPair } = await adminClient
+    .from("buddy_pairs")
+    .select("user1_id, user2_id")
+    .or(`user1_id.eq.${fetchUserId},user2_id.eq.${fetchUserId}`)
+    .eq("active", true)
+    .maybeSingle();
+
+  if (buddyPair) {
+    const buddyId = buddyPair.user1_id === fetchUserId ? buddyPair.user2_id : buddyPair.user1_id;
+    const { data: buddyProfile } = await adminClient.from("users").select("full_name").eq("id", buddyId).single();
     if (buddyProfile) {
+      // Check if buddy completed today's ritual
+      const { data: buddyRitual } = await adminClient
+        .from("daily_rituals")
+        .select("status, total_points")
+        .eq("student_id", buddyId)
+        .eq("ritual_date", todayStr)
+        .maybeSingle();
+
+      const { data: buddyStreak } = await adminClient
+        .from("streaks")
+        .select("current_streak")
+        .eq("user_id", buddyId)
+        .maybeSingle();
+
       buddy = {
-        id: profile.buddy_id,
+        id: buddyId,
         full_name: buddyProfile.full_name,
-        streak: 0,
-        completedToday: false
+        streak: buddyStreak?.current_streak || 1,
+        completedToday: buddyRitual?.total_points ? buddyRitual.total_points > 0 : false
       };
     }
   }
@@ -167,10 +221,10 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
     .limit(3);
 
   // Fetch Badges
-  const { data: badgesData } = await supabase
+  const { data: badgesData } = await adminClient
     .from("user_badges")
     .select("id, earned_at, badges(id, name, icon_name)")
-    .eq("user_id", user.id)
+    .eq("user_id", fetchUserId)
     .order("earned_at", { ascending: false });
 
   const badges = (badgesData || []).map((b: any) => ({
@@ -188,14 +242,14 @@ export async function getStudentDashboardData(): Promise<StudentDashboardData> {
       current_streak: streakRes.data?.current_streak || 0, 
       communication_score 
     },
-    dailyWord: wordCardsRes.data ? {
-      id: wordCardsRes.data.id,
-      word: wordCardsRes.data.word,
-      meaning: wordCardsRes.data.definition,
-      challenge_text: wordCardsRes.data.example_sentence || null,
-      isCompleted
+    dailyWord: ritualRes.data ? {
+      id: ritualRes.data.id,
+      word: ritualRes.data.word,
+      meaning: ritualRes.data.meaning || ritualRes.data.definition || "",
+      challenge_text: ritualRes.data.daily_life_example || ritualRes.data.business_example || ritualRes.data.example_sentence || null,
+      isCompleted: ritualRes.isCompleted || isCompleted
     } : null,
-    leaderboardPreview,
+    championshipLeaderboard,
     buddy,
     announcements: announcementsData || [],
     badges

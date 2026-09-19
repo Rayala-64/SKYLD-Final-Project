@@ -13,6 +13,7 @@ ADD CONSTRAINT mentor_notes_mentor_student_unique UNIQUE (mentor_id, student_id)
 -------------------------------------------------------------------------------
 -- 2. Claim Next AI Job Security Definer
 -------------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.claim_next_ai_job();
 CREATE OR REPLACE FUNCTION public.claim_next_ai_job()
 RETURNS TABLE (
   job_id uuid,

@@ -29,7 +29,7 @@ export function ThemeToggle({ className = "", showLabel = false }: ThemeTogglePr
     <button
       onClick={toggleTheme}
       type="button"
-      className={`relative inline-flex items-center justify-center gap-2 p-2 rounded-xl transition-all duration-200 border border-border/60 bg-card/60 hover:bg-muted/80 text-foreground shadow-sm hover:scale-105 active:scale-95 ${className}`}
+      className={`relative inline-flex items-center justify-center gap-2 p-2 rounded-xl transition-all duration-200 border border-border/60 bg-card/60 hover:bg-muted/80 text-foreground shadow-sm hover:scale-105 active:scale-95 cursor-pointer ${className}`}
       title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
       aria-label={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
     >

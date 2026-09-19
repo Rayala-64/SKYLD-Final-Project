@@ -6,8 +6,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { PodMessageForm } from "./PodMessageForm";
 import { PodMessageList } from "@/components/pod/PodMessageList";
 import { SelectBuddyButton } from "@/components/pod/SelectBuddyButton";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
+
+export const dynamic = 'force-dynamic';
 
 export default async function PodPage() {
   const supabase = await createClient();
@@ -101,9 +104,11 @@ export default async function PodPage() {
                       </div>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="text-xs font-semibold text-primary">{student.xp.toLocaleString()} XP</span>
+                      <span className="text-xs font-semibold text-primary mr-2">{student.xp.toLocaleString()} XP</span>
                       {currentUserId && currentUserId !== student.id && (
-                        <SelectBuddyButton buddyId={student.id} />
+                        <>
+                          <SelectBuddyButton buddyId={student.id} />
+                        </>
                       )}
                     </div>
                   </div>

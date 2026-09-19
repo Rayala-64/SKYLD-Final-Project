@@ -35,15 +35,18 @@ const buttonVariants = cva(
   }
 )
 
+import Link from "next/link"
+
 export interface ButtonProps
   extends React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean
   isLoading?: boolean
+  href?: string
 }
 
-const PremiumButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, isLoading = false, children, ...props }, ref) => {
+const PremiumButton = React.forwardRef<HTMLButtonElement | HTMLAnchorElement, ButtonProps>(
+  ({ className, variant, size, asChild = false, isLoading = false, href, children, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
     
     // If it's a link (asChild), we shouldn't pass disabled directly as it breaks some routing types
@@ -59,13 +62,8 @@ const PremiumButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
       )
     }
 
-    return (
-      <button
-        className={cn(buttonVariants({ variant, size, className }), "active:scale-95")}
-        ref={ref}
-        disabled={isLoading || props.disabled}
-        {...props}
-      >
+    const innerContent = (
+      <>
         {variant === "default" && (
           <span className="absolute inset-0 w-full h-full bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700 ease-in-out skew-x-12" />
         )}
@@ -78,6 +76,29 @@ const PremiumButton = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ) : (
           children
         )}
+      </>
+    );
+
+    if (href) {
+      return (
+        <Link 
+          href={href} 
+          className={cn(buttonVariants({ variant, size, className }), "active:scale-95")}
+          {...(props as any)}
+        >
+          {innerContent}
+        </Link>
+      )
+    }
+
+    return (
+      <button
+        className={cn(buttonVariants({ variant, size, className }), "active:scale-95")}
+        ref={ref as any}
+        disabled={isLoading || props.disabled}
+        {...props}
+      >
+        {innerContent}
       </button>
     )
   }

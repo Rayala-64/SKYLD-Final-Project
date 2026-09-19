@@ -13,15 +13,17 @@ import {
   Menu,
   Archive,
   BookMarked,
-  Map,
+  MessageSquareCheck,
+  Map as MapIcon,
+  Swords,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FadeIn } from "@/components/animations/FadeIn";
 import { motion } from "framer-motion";
 import { logout } from "@/app/actions/auth";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
-
 import { createClient } from "@/utils/supabase/client";
 
 // Dynamic links will be generated inside the component based on the pathname
@@ -48,20 +50,23 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   let sidebarLinks = [];
-  if (pathname.startsWith("/admin")) {
+  if (pathname?.startsWith("/admin")) {
     sidebarLinks = [
       { name: "Admin Dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
     ];
-  } else if (pathname.startsWith("/mentor")) {
+  } else if (pathname?.startsWith("/mentor")) {
     sidebarLinks = [
       { name: "Mentor Dashboard", href: "/mentor/dashboard", icon: LayoutDashboard },
+      { name: "Evaluations", href: "/mentor/evaluations", icon: BookOpen },
       { name: "My Pod", href: "/mentor/pod", icon: Users },
     ];
   } else {
     sidebarLinks = [
       { name: "Dashboard", href: "/vault/dashboard", icon: LayoutDashboard },
-      { name: "Learning Path", href: "/vault/path", icon: Map },
+      { name: "Learning Path", href: "/vault/path", icon: MapIcon },
       { name: "Word Vault", href: "/vault/library", icon: BookMarked },
+      { name: "Review Queue", href: "/vault/review", icon: MessageSquareCheck },
+      { name: "Championships", href: "/vault/championship", icon: Swords },
       { name: "My Pod", href: "/vault/pod", icon: Users },
       { name: "Leaderboard", href: "/leaderboard", icon: Trophy },
     ];
@@ -76,14 +81,13 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         transition={{ duration: 0.5, ease: [0.25, 0.25, 0, 1] }}
         className="hidden md:flex flex-col w-64 border-r border-border/40 bg-card/50 backdrop-blur-xl"
       >
-        <div className="h-16 flex items-center justify-between px-6 border-b border-border/40">
+        <div className="h-16 flex items-center px-6 border-b border-border/40">
           <Link href="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-heading font-bold text-lg shadow-lg">
               S
             </div>
             <span className="font-heading font-bold text-xl tracking-tight">SKYLD</span>
           </Link>
-          <ThemeToggle />
         </div>
 
         <div className="flex-1 overflow-y-auto py-6 px-4">
@@ -120,11 +124,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div className="p-4 border-t border-border/40">
           <div className="flex items-center gap-3 px-2 py-2 mb-2">
             <Avatar className="w-10 h-10 border border-border/50 ring-2 ring-primary/20">
-              <AvatarFallback>{userProfile ? userProfile.full_name.substring(0, 2).toUpperCase() : "..."}</AvatarFallback>
+              <AvatarFallback>{userProfile ? (userProfile.full_name || "??").substring(0, 2).toUpperCase() : "..."}</AvatarFallback>
             </Avatar>
-            <div className="flex flex-col">
-              <span className="text-sm font-medium">{userProfile ? userProfile.full_name : "Loading..."}</span>
-              <span className="text-xs text-muted-foreground">Level {userProfile ? userProfile.level : "..."}</span>
+            <div className="flex flex-col min-w-0 flex-1">
+              <span className="text-sm font-medium truncate">{userProfile ? (userProfile.full_name || "Unknown User") : "Loading..."}</span>
+              <span className="text-xs text-muted-foreground">Level {userProfile ? (userProfile.level || 1) : "..."}</span>
             </div>
           </div>
           <nav className="space-y-1">
@@ -135,7 +139,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
               </div>
             </Link>
             <form action={logout} className="w-full">
-              <button type="submit" className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-left">
+              <button type="submit" className="w-full flex items-center gap-3 px-3 py-2 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-left cursor-pointer">
                 <LogOut className="w-5 h-5" />
                 <span className="text-sm">Log out</span>
               </button>
@@ -146,25 +150,76 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="h-16 md:hidden flex items-center justify-between px-4 border-b border-border/40 bg-background/80 backdrop-blur-lg sticky top-0 z-10">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-heading font-bold text-lg shadow-lg">
-              S
+        <header className="h-16 flex items-center justify-between px-4 md:px-8 border-b border-border/40 bg-background/80 backdrop-blur-lg sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <Link href="/" className="md:hidden flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-primary to-secondary flex items-center justify-center text-white font-heading font-bold text-lg shadow-lg">
+                S
+              </div>
+            </Link>
+            <div className="hidden md:flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="font-heading font-bold text-foreground tracking-tight">SKYLD</span>
+              <span className="text-muted-foreground/50">/</span>
+              <span className="capitalize font-medium text-foreground/80">
+                {pathname?.split('/')[2] || pathname?.split('/')[1] || 'Dashboard'}
+              </span>
             </div>
-          </Link>
+          </div>
+
           <div className="flex items-center gap-2">
-            <ThemeToggle />
+            <ThemeToggle className="w-9 h-9 rounded-xl p-2" />
+            <NotificationBell placement="header" />
             <Button
               variant="ghost"
               size="icon"
+              className="md:hidden"
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
             >
               <Menu className="w-6 h-6" />
             </Button>
           </div>
         </header>
+
+        {/* Mobile Menu Overlay */}
+        {isMobileMenuOpen && (
+          <div className="md:hidden fixed inset-0 z-20 bg-background/95 backdrop-blur-md pt-[64px] flex flex-col h-screen">
+            <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+              {sidebarLinks.map((item) => {
+                const isActive = pathname === item.href;
+                return (
+                  <Link key={item.name} href={item.href} onClick={() => setIsMobileMenuOpen(false)}>
+                    <div
+                      className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                        isActive
+                          ? "bg-primary text-primary-foreground shadow-md shadow-primary/20"
+                          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
+                      }`}
+                    >
+                      <item.icon className="w-5 h-5" />
+                      <span className="font-medium">{item.name}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="p-4 border-t border-border/40 pb-safe bg-background">
+              <Link href="/settings" onClick={() => setIsMobileMenuOpen(false)}>
+                <div className="flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all">
+                  <Settings className="w-5 h-5" />
+                  <span className="text-sm font-medium">Settings</span>
+                </div>
+              </Link>
+              <form action={logout} className="w-full mt-2">
+                <button type="submit" className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all text-left">
+                  <LogOut className="w-5 h-5" />
+                  <span className="text-sm font-medium">Log out</span>
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
         
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto relative z-10">
           <FadeIn className="h-full p-4 md:p-8" delay={0.1}>
             {children}
           </FadeIn>

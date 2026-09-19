@@ -514,9 +514,9 @@ BEGIN
 
   -- Insert submission
   INSERT INTO public.submissions (
-    user_id, word_card_id, reflection_text, reflection_ai_feedback, video_url, video_ai_feedback, status, date
+    user_id, word_card_id, reflection_text, reflection_ai_feedback, video_url, video_ai_feedback, status, date, points_earned
   ) VALUES (
-    p_student_id, p_word_card_id, p_reflection_text, p_reflection_ai_feedback, p_video_url, p_video_ai_feedback, 'submitted', p_date
+    p_student_id, p_word_card_id, p_reflection_text, p_reflection_ai_feedback, p_video_url, p_video_ai_feedback, 'submitted', p_date, v_calculated_points
   ) RETURNING id INTO v_submission_id;
 
   -- Insert AI job if it's pending

@@ -12,15 +12,37 @@ export async function getStudentDetails(studentId: string) {
   
   const adminClient = createAdminClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL || "",
-    process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+    process.env.SUPABASE_SERVICE_ROLE_KEY || "",
+    {
+      global: {
+        fetch: (url, options) => fetch(url, { ...options, cache: "no-store" }),
+      },
+    }
   );
 
   // Verify mentor has access to this student
-  const { data: mentorProfile } = await adminClient.from('users').select('pod_id, role').eq('id', user.id).single();
+  const { data: mentorProfile } = await adminClient.from('users').select('role').eq('id', user.id).single();
   if (!mentorProfile || mentorProfile.role !== 'mentor') throw new Error("Unauthorized");
 
   const { data: studentProfile } = await adminClient.from('users').select('full_name, pod_id').eq('id', studentId).single();
-  if (!studentProfile || studentProfile.pod_id !== mentorProfile.pod_id) throw new Error("Student not found or not in your pod");
+  if (!studentProfile || !studentProfile.pod_id) throw new Error("Student not found or has no pod");
+
+  // Check if mentor manages this pod directly or via unit
+  const { data: podMentors } = await adminClient.from("pod_mentors").select("pod_id").eq("mentor_id", user.id).eq("pod_id", studentProfile.pod_id);
+  const isDirectMentor = podMentors && podMentors.length > 0;
+
+  let isUnitMentor = false;
+  if (!isDirectMentor) {
+    const { data: pod } = await adminClient.from("pods").select("unit_id").eq("id", studentProfile.pod_id).single();
+    if (pod?.unit_id) {
+      const { data: unitMentors } = await adminClient.from("unit_mentors").select("unit_id").eq("mentor_id", user.id).eq("unit_id", pod.unit_id);
+      if (unitMentors && unitMentors.length > 0) isUnitMentor = true;
+    }
+  }
+
+  if (!isDirectMentor && !isUnitMentor) {
+    throw new Error("Student not found or not in your managed pods");
+  }
 
   // Fetch XP and submissions using admin client since Mentors don't have RLS read access to xp_transactions
   const [xpRes, submissionsRes, notesRes] = await Promise.all([

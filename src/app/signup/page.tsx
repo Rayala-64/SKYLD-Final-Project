@@ -6,15 +6,11 @@ import { Label } from "@/components/ui/label";
 import { FadeIn } from "@/components/animations/FadeIn";
 import Link from "next/link";
 import { ArrowRight, UserPlus, ShieldCheck, AlertTriangle } from "lucide-react";
-import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default async function SignupPage({ searchParams }: { searchParams: Promise<{ error?: string }> }) {
   const resolvedSearchParams = await searchParams;
   return (
     <div className="min-h-screen flex bg-background relative overflow-hidden">
-      <div className="absolute top-6 right-6 z-50">
-        <ThemeToggle />
-      </div>
       {/* Decorative Left Side */}
       <div className="hidden lg:flex w-1/2 relative bg-card items-center justify-center border-r border-white/5 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-secondary/20 to-transparent" />

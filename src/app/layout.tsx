@@ -25,9 +25,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-   <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable}`} suppressHydrationWarning>
-      <body className="min-h-full flex flex-col font-sans antialiased text-foreground bg-background transition-colors duration-200">
-        <ThemeProvider defaultTheme="dark">
+    <html lang="en" className={`${inter.variable} ${spaceGrotesk.variable} dark`} suppressHydrationWarning>
+      <body className="min-h-full flex flex-col font-sans antialiased text-foreground bg-background">
+        <ThemeProvider defaultTheme="dark" storageKey="skyld-theme">
           <TooltipProvider>
             {children}
           </TooltipProvider>

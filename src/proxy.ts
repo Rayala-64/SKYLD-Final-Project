@@ -39,7 +39,7 @@ export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
   
   // Public routes
-  const isPublicRoute = path === '/' || path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/api/');
+  const isPublicRoute = path === '/' || path.startsWith('/login') || path.startsWith('/signup') || path.startsWith('/api/') || path.startsWith('/forgot-password') || path.startsWith('/auth/callback') || path.startsWith('/reset-password');
 
   if (!user && !isPublicRoute) {
     // Redirect unauthenticated users to login
@@ -47,14 +47,28 @@ export async function proxy(request: NextRequest) {
   }
 
   if (user) {
-    // Fetch role
-    const { data: profile } = await supabase
-      .from('users')
-      .select('role')
-      .eq('id', user.id)
-      .single()
+    // 🚀 PERFORMANCE FIX: Check if we have the role cached in a cookie
+    let role = request.cookies.get('user-role')?.value;
 
-    const role = profile?.role;
+    if (!role) {
+      // Only hit the database if the cookie is missing (First login)
+      const { data: profile } = await supabase
+        .from('users')
+        .select('role')
+        .eq('id', user.id)
+        .single();
+
+      role = profile?.role;
+
+      // Cache it in the response so all future page clicks skip the database!
+      if (role) {
+        supabaseResponse.cookies.set('user-role', role, {
+          maxAge: 60 * 60 * 24 * 7, // 7 days
+          path: '/',
+          sameSite: 'lax',
+        });
+      }
+    }
 
     // Prevent authenticated users from visiting login/signup
     if (path.startsWith('/login') || path.startsWith('/signup')) {

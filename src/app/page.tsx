@@ -7,6 +7,7 @@ import { FloatingElement } from "@/components/animations/FloatingElement";
 import { FadeIn } from "@/components/animations/FadeIn";
 import Link from "next/link";
 import { BrainCircuit, Mic, Sparkles, ArrowRight, ShieldCheck, Zap, PenTool, Flame, Target, Trophy, CheckCircle2 } from "lucide-react";
+
 import { ThemeToggle } from "@/components/theme/ThemeToggle";
 
 export default async function LandingPage() {
@@ -47,11 +48,11 @@ export default async function LandingPage() {
         </div>
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          <PremiumButton variant="ghost" className="hidden sm:inline-flex" asChild>
-            <Link href="/login">Log In</Link>
+          <PremiumButton href="/login" variant="ghost" className="hidden sm:inline-flex">
+            Log In
           </PremiumButton>
-          <PremiumButton asChild>
-            <Link href="/signup">Start Your Journey <ArrowRight className="w-4 h-4 ml-2" /></Link>
+          <PremiumButton href="/signup">
+            Start Your Journey <ArrowRight className="w-4 h-4 ml-2" />
           </PremiumButton>
         </div>
       </nav>
@@ -81,10 +82,10 @@ export default async function LandingPage() {
         </FadeIn>
 
         <FadeIn delay={0.8} className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-6">
-          <PremiumButton size="lg" className="w-full sm:w-auto text-lg px-10 h-14 rounded-full shadow-[0_0_30px_rgba(var(--primary),0.4)]" asChild>
-            <Link href="/signup">Start Your Journey</Link>
+          <PremiumButton href="/signup" size="lg" className="w-full sm:w-auto text-lg px-10 h-14 rounded-full shadow-[0_0_30px_rgba(var(--primary),0.4)]">
+            Start Your Journey
           </PremiumButton>
-          <PremiumButton variant="outline" size="lg" className="w-full sm:w-auto text-lg px-10 h-14 rounded-full bg-background/50 backdrop-blur-md">
+          <PremiumButton href="/signup" variant="outline" size="lg" className="w-full sm:w-auto text-lg px-10 h-14 rounded-full bg-background/50 backdrop-blur-md">
             See How It Works
           </PremiumButton>
         </FadeIn>
@@ -209,8 +210,8 @@ export default async function LandingPage() {
           <p className="text-xl text-muted-foreground mb-10 max-w-2xl mx-auto">
             Join the students using SKYLD to speak with confidence and write with clarity.
           </p>
-          <PremiumButton size="lg" className="w-full sm:w-auto text-lg px-12 h-16 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.5)]" asChild>
-            <Link href="/signup">Start Your Journey Today</Link>
+          <PremiumButton href="/signup" size="lg" className="w-full sm:w-auto text-lg px-12 h-16 rounded-full shadow-[0_0_40px_rgba(var(--primary),0.5)]">
+            Start Your Journey Today
           </PremiumButton>
         </PremiumCard>
       </section>
