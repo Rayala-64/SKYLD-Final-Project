@@ -205,6 +205,21 @@ export async function deleteStudent(studentId: string) {
   }
 }
 
+export async function deleteMentor(mentorId: string) {
+  try {
+    await verifyAdmin();
+    const adminClient = getAdminClient();
+    
+    const { error } = await adminClient.auth.admin.deleteUser(mentorId);
+    if (error) return { error: error.message };
+
+    revalidatePath('/admin/roster');
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Failed to delete mentor" };
+  }
+}
+
 export async function flushTestData() {
   try {
     await verifyAdmin();
