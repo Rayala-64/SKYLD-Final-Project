@@ -189,3 +189,45 @@ export async function deleteOrganization(type: 'batch' | 'unit' | 'pod', id: str
     return { error: err.message || "Failed to delete organization" };
   }
 }
+
+export async function deleteStudent(studentId: string) {
+  try {
+    await verifyAdmin();
+    const adminClient = getAdminClient();
+    
+    const { error } = await adminClient.auth.admin.deleteUser(studentId);
+    if (error) return { error: error.message };
+
+    revalidatePath('/admin/roster');
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Failed to delete student" };
+  }
+}
+
+export async function flushTestData() {
+  try {
+    await verifyAdmin();
+    const adminClient = getAdminClient();
+
+    const { data: students } = await adminClient.from('users').select('id').eq('role', 'student');
+    
+    if (students) {
+      for (const student of students) {
+        await adminClient.auth.admin.deleteUser(student.id);
+      }
+    }
+
+    await adminClient.from('buddy_pairs').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await adminClient.from('pod_mentors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await adminClient.from('unit_mentors').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await adminClient.from('pods').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await adminClient.from('units').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+    await adminClient.from('batches').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+
+    revalidatePath('/admin/roster');
+    return { success: true };
+  } catch (err: any) {
+    return { error: err.message || "Failed to flush test data" };
+  }
+}

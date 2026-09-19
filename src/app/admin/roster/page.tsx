@@ -4,7 +4,7 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import { useState, useEffect } from "react";
-import { getRosterData, createOrganization, assignStudent, createBuddyPair, assignMentor, deleteOrganization, assignPodLeader } from "@/app/actions/admin_roster";
+import { getRosterData, createOrganization, assignStudent, createBuddyPair, assignMentor, deleteOrganization, assignPodLeader, deleteStudent, flushTestData } from "@/app/actions/admin_roster";
 import { Loader2, Users, ArrowRight, UserPlus, Trash2, Crown } from "lucide-react";
 
 export default function RosterPage() {
@@ -111,6 +111,18 @@ export default function RosterPage() {
     try {
       const res = await deleteOrganization(type, id);
       if (res?.error) return alert(res.error);
+      loadData();
+    } catch (e: any) {
+      alert("Unexpected error: " + e.message);
+    }
+  };
+
+  const handleDeleteStudent = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to delete student "${name}" completely?`)) return;
+    try {
+      const res = await deleteStudent(id);
+      if (res?.error) return alert(res.error);
+      alert("✅ Student deleted successfully!");
       loadData();
     } catch (e: any) {
       alert("Unexpected error: " + e.message);
@@ -317,13 +329,16 @@ export default function RosterPage() {
                       <th className="px-4 py-3 rounded-tl-lg">Student</th>
                       <th className="px-4 py-3">Batch</th>
                       <th className="px-4 py-3">Unit</th>
-                      <th className="px-4 py-3 rounded-tr-lg">Pod</th>
+                      <th className="px-4 py-3">Pod</th>
+                      <th className="px-4 py-3 rounded-tr-lg">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {data?.students.map((student: any) => (
                       <tr key={student.id} className="border-b border-border/50 hover:bg-muted/20">
-                        <td className="px-4 py-3 font-medium">{student.full_name}</td>
+                        <td className="px-4 py-3 font-medium flex items-center gap-2">
+                          {student.full_name}
+                        </td>
                         <td className="px-4 py-3">
                           <select 
                             value={student.batch_id || ""} 
@@ -353,6 +368,11 @@ export default function RosterPage() {
                             <option value="">None</option>
                             {data?.pods.map((p: any) => <option key={p.id} value={p.id}>{p.name}</option>)}
                           </select>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button onClick={() => handleDeleteStudent(student.id, student.full_name)} className="text-red-500/50 hover:text-red-500 cursor-pointer" title="Delete Student">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -446,6 +466,7 @@ export default function RosterPage() {
                 {data?.buddy_pairs.length === 0 && <div className="text-sm text-muted-foreground">No active buddy pairs.</div>}
               </div>
             </PremiumCard>
+
           </div>
           
         </div>
