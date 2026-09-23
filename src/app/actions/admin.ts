@@ -2,6 +2,7 @@
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { sendEmailNotification } from "@/lib/server/email";
 
 import type { AdminDashboardData } from "@/types/admin";
 
@@ -315,9 +316,9 @@ export async function createAnnouncement(title: string, body: string, scope: 'gl
     throw new Error(`Unable to create announcement: ${error.message}`);
   }
 
-  // Broadcast in-app notifications to targeted users
+  // Broadcast in-app notifications and emails to targeted users
   try {
-    let query = adminClient.from('users').select('id');
+    let query = adminClient.from('users').select('id, email');
     if (scope === 'pod' && pod_id) {
       query = query.eq('pod_id', pod_id);
     }
@@ -332,6 +333,25 @@ export async function createAnnouncement(title: string, body: string, scope: 'gl
         created_at: new Date().toISOString()
       }));
       await adminClient.from('notifications').insert(notifRows);
+
+      // Broadcast Email Notifications
+      const emailPromises = recipients
+        .filter((r: any) => r.email)
+        .map((r: any) =>
+          sendEmailNotification({
+            to: r.email,
+            subject: `SKYLD Announcement: ${title}`,
+            text: body,
+            html: `
+              <div style="font-family: sans-serif; background-color: #f8fafc; padding: 20px; border-radius: 8px;">
+                <h2 style="color: #4f46e5; margin-top: 0;">${title}</h2>
+                <p style="color: #334155; line-height: 1.6;">${body}</p>
+              </div>
+            `
+          })
+        );
+      
+      await Promise.allSettled(emailPromises);
     }
   } catch (notifErr) {
     console.error("Non-blocking announcement notification error:", notifErr);

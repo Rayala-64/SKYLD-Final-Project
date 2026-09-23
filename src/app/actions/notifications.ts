@@ -159,12 +159,14 @@ export async function sendInAppNotification(params: {
 }
 
 /**
- * Send a quick buddy nudge alert
+ * Send a quick buddy nudge alert (in-app + email)
  */
 export async function sendBuddyNudge(targetStudentId: string, customMessage?: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) throw new Error("Unauthorized");
+
+  const adminClient = getAdminClient();
 
   // Fetch sender name
   const { data: sender } = await supabase.from("users").select("full_name").eq("id", user.id).single();
@@ -172,7 +174,8 @@ export async function sendBuddyNudge(targetStudentId: string, customMessage?: st
 
   const message = customMessage || `${senderName} is nudging you to complete your daily 10-step word ritual! Let's keep the streak alive 🔥`;
 
-  return await sendInAppNotification({
+  // In-app notification
+  const result = await sendInAppNotification({
     userId: targetStudentId,
     type: "SYSTEM",
     title: `⚡ Buddy Nudge from ${senderName}`,
@@ -180,4 +183,47 @@ export async function sendBuddyNudge(targetStudentId: string, customMessage?: st
     entityType: "BUDDY_NUDGE",
     entityId: user.id,
   });
+
+  // Email notification to buddy
+  try {
+    const { data: buddyProfile } = await adminClient
+      .from("users")
+      .select("email, full_name")
+      .eq("id", targetStudentId)
+      .single();
+
+    if (buddyProfile?.email) {
+      const { sendEmailNotification } = await import("@/lib/server/email");
+      await sendEmailNotification({
+        to: buddyProfile.email,
+        subject: `⚡ ${senderName} is waiting for you!`,
+        text: message,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0f172a; color: #f8fafc; border-radius: 16px;">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <h1 style="color: #6366f1; margin: 0; font-size: 24px;">SKYLD</h1>
+              <p style="color: #94a3b8; font-size: 14px; margin-top: 4px;">Buddy Notification</p>
+            </div>
+            <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+              <h2 style="color: #fbbf24; margin-top: 0; font-size: 18px;">⚡ ${senderName} nudged you!</h2>
+              <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">${message}</p>
+              <div style="text-align: center; margin: 28px 0 12px 0;">
+                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-pilot.netlify.app'}/vault/dashboard" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                  Complete Your Ritual →
+                </a>
+              </div>
+            </div>
+            <p style="text-align: center; color: #64748b; font-size: 12px; margin-top: 24px;">
+              © ${new Date().getFullYear()} SKYLD. All rights reserved.
+            </p>
+          </div>
+        `,
+      });
+    }
+  } catch (emailErr) {
+    console.error("Non-blocking buddy nudge email error:", emailErr);
+  }
+
+  return result;
 }
+

@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { analyzeReflectionInternal, analyzeSpeechInternal } from "@/lib/server/ai";
 import { sendInAppNotification } from "./notifications";
+import { sendEmailNotification } from "@/lib/server/email";
 
 function getAdminClient() {
   return createAdminClient(
@@ -253,6 +254,20 @@ export async function submitDailyMissionV2(
           entityType: "RITUAL",
           entityId: ritualId
         });
+      // Send email notification to buddy
+      const { data: buddyProfile } = await adminClient
+        .from('users')
+        .select('email, full_name')
+        .eq('id', buddyId)
+        .single();
+      if (buddyProfile?.email) {
+        await sendEmailNotification({
+          to: buddyProfile.email,
+          subject: "Buddy Review Assigned",
+          text: `${profile?.full_name || 'Your buddy'} just submitted their 10-step ritual. Please review their submission!`,
+          html: `<p>${profile?.full_name || 'Your buddy'} just submitted their 10-step ritual. Please review their submission!</p>`
+        });
+      }
       }
     }
   }
@@ -325,8 +340,101 @@ export async function submitDailyMissionV2(
           entityType: "RITUAL",
           entityId: ritualId
         });
+      // Send email notification to peer reviewer
+      const { data: peerProfile } = await adminClient
+        .from('users')
+        .select('email, full_name')
+        .eq('id', randomPeer.id)
+        .single();
+      if (peerProfile?.email) {
+        await sendEmailNotification({
+          to: peerProfile.email,
+          subject: "Peer Review Assigned",
+          text: `You have been selected to provide an objective external review for a peer's 10-step ritual.`,
+          html: `<p>You have been selected to provide an objective external review for a peer's 10-step ritual.</p>`
+        });
+      }
       }
     }
+  }
+
+  // 3. Notify Pod Mentor(s) that a student completed their ritual
+  try {
+    const studentPodId = podId || (await (async () => {
+      const { data: p } = await adminClient.from('users').select('pod_id').eq('id', userId).single();
+      return p?.pod_id;
+    })());
+
+    if (studentPodId) {
+      const { data: mentors } = await adminClient
+        .from('users')
+        .select('id, email, full_name')
+        .eq('role', 'mentor')
+        .eq('pod_id', studentPodId);
+
+      const { data: studentProfile } = await adminClient
+        .from('users')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      const { data: wordCard } = await adminClient
+        .from('word_cards')
+        .select('word')
+        .eq('id', wordCardId)
+        .single();
+
+      const studentName = studentProfile?.full_name || 'A student';
+      const wordText = wordCard?.word || 'today\'s word';
+
+      if (mentors && mentors.length > 0) {
+        for (const mentor of mentors) {
+          // In-app notification
+          await sendInAppNotification({
+            userId: mentor.id,
+            type: "STUDENT_RITUAL_COMPLETED",
+            title: "📋 Student Ritual Completed",
+            message: `${studentName} has completed their 10-step ritual for "${wordText}". Review their submission when ready.`,
+            entityType: "RITUAL",
+            entityId: ritualId
+          });
+
+          // Email notification
+          if (mentor.email) {
+            await sendEmailNotification({
+              to: mentor.email,
+              subject: `📋 ${studentName} completed their daily ritual`,
+              text: `${studentName} has completed their 10-step ritual for "${wordText}". Review their submission when ready.`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0f172a; color: #f8fafc; border-radius: 16px;">
+                  <div style="text-align: center; margin-bottom: 24px;">
+                    <h1 style="color: #6366f1; margin: 0; font-size: 24px;">SKYLD</h1>
+                    <p style="color: #94a3b8; font-size: 14px; margin-top: 4px;">Mentor Dashboard</p>
+                  </div>
+                  <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+                    <h2 style="color: #22c55e; margin-top: 0; font-size: 18px;">📋 Ritual Completed</h2>
+                    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+                      <strong>${studentName}</strong> has completed their 10-step ritual for <strong>"${wordText}"</strong>.
+                    </p>
+                    <p style="color: #94a3b8; font-size: 13px;">You can review their reflection, video, and provide feedback from the mentor dashboard.</p>
+                    <div style="text-align: center; margin: 28px 0 12px 0;">
+                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-pilot.netlify.app'}/mentor/dashboard" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                        Open Mentor Dashboard →
+                      </a>
+                    </div>
+                  </div>
+                  <p style="text-align: center; color: #64748b; font-size: 12px; margin-top: 24px;">
+                    © ${new Date().getFullYear()} SKYLD. All rights reserved.
+                  </p>
+                </div>
+              `,
+            });
+          }
+        }
+      }
+    }
+  } catch (mentorNotifErr) {
+    console.error("Non-blocking mentor notification error:", mentorNotifErr);
   }
 
   return { success: true };

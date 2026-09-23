@@ -40,11 +40,11 @@ export function NudgeBuddyButton({ buddyId, buddyName }: NudgeBuddyButtonProps) 
     >
       {nudged ? (
         <>
-          <Check className="w-3 h-3" /> Nudged!
+          <Check className="w-3 h-3" /> Notified!
         </>
       ) : (
         <>
-          <Flame className="w-3 h-3 text-warning" /> Nudge Buddy
+          <Flame className="w-3 h-3 text-warning" /> Notify Buddy
         </>
       )}
     </button>

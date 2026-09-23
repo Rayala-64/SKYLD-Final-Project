@@ -170,10 +170,15 @@ export async function resetPassword(formData: FormData) {
   }
 
   const supabase = await createClient();
-  
-  // Create an absolute URL for the callback
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000";
-  const redirectUrl = `${origin}/reset-password`;
+
+  // Dynamically build the origin from the incoming request's host header.
+  // This means: localhost:3000 in dev → localhost link; Netlify in prod → Netlify link.
+  // Never rely on a hardcoded env var so the link always points to the right server.
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost:3000";
+  const protocol = host.startsWith("localhost") ? "http" : "https";
+  const origin = `${protocol}://${host}`;
+  const redirectUrl = `${origin}/auth/callback?next=/reset-password`;
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
     redirectTo: redirectUrl,
