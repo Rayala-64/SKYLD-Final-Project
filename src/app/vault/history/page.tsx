@@ -23,6 +23,8 @@ export default async function HistoryPage() {
       status,
       reflection_ai_feedback,
       video_ai_feedback,
+      daily_ritual_id,
+      video_url,
       word_cards ( word, definition, example_sentence )
     `)
     .eq("user_id", user.id)
@@ -30,6 +32,30 @@ export default async function HistoryPage() {
     .order("date", { ascending: false });
 
   const history = submissions || [];
+
+  // Fetch human reviews for these submissions
+  const ritualIds = history.map(s => s.daily_ritual_id).filter(Boolean);
+  let humanReviews: any[] = [];
+  if (ritualIds.length > 0) {
+    const { data: reviews } = await supabase
+      .from("ritual_reviews")
+      .select(`
+        ritual_id,
+        review_type,
+        feedback_text,
+        score,
+        reviewer:users!ritual_reviews_reviewer_id_fkey(full_name)
+      `)
+      .eq("reviewee_id", user.id)
+      .eq("status", "completed")
+      .in("ritual_id", ritualIds);
+    humanReviews = reviews || [];
+  }
+
+  const enrichedHistory = history.map(sub => {
+    const reviewsForSub = humanReviews.filter(r => r.ritual_id === sub.daily_ritual_id);
+    return { ...sub, human_reviews: reviewsForSub };
+  });
 
   return (
     <DashboardLayout>
@@ -45,7 +71,7 @@ export default async function HistoryPage() {
         </header>
 
         <div className="space-y-6">
-          {history.length === 0 ? (
+          {enrichedHistory.length === 0 ? (
             <PremiumCard glass className="p-12 text-center border-dashed">
               <Calendar className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
               <h3 className="text-xl font-semibold mb-2">No History Yet</h3>
@@ -55,7 +81,7 @@ export default async function HistoryPage() {
               </Link>
             </PremiumCard>
           ) : (
-            history.map((sub: any) => (
+            enrichedHistory.map((sub: any) => (
               <PremiumCard key={sub.id} glass className="p-6 overflow-hidden relative">
                 <div className="flex flex-col md:flex-row gap-6">
                   {/* Left Column: Word Info */}
@@ -111,6 +137,30 @@ export default async function HistoryPage() {
                         </p>
                       </div>
                     </div>
+
+                    {/* Human Peer/Buddy Feedback */}
+                    {sub.human_reviews && sub.human_reviews.length > 0 && (
+                      <div className="mt-6 pt-6 border-t border-border/50">
+                        <h3 className="font-semibold mb-4 text-glow">Peer & Buddy Feedback</h3>
+                        <div className="space-y-4">
+                          {sub.human_reviews.map((rev: any, idx: number) => (
+                            <div key={idx} className="bg-primary/5 p-4 rounded-xl border border-primary/20 relative overflow-hidden">
+                              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -mr-16 -mt-16" />
+                              <div className="flex justify-between items-start mb-2 relative z-10">
+                                <h4 className="text-sm font-semibold text-primary capitalize flex items-center gap-2">
+                                  {rev.review_type.toLowerCase()} Review
+                                  <span className="text-xs font-normal text-muted-foreground">- {rev.reviewer?.full_name}</span>
+                                </h4>
+                                <div className="text-sm font-bold bg-background/80 px-2 py-1 rounded text-primary border border-primary/20">
+                                  {rev.score}/10
+                                </div>
+                              </div>
+                              <p className="text-sm text-foreground/90 italic relative z-10 leading-relaxed">"{rev.feedback_text}"</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               </PremiumCard>
