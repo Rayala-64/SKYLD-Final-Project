@@ -312,7 +312,29 @@ export async function submitDailyMissionV2(
   }
 
   if (candidates.length > 0) {
-    const randomPeer = candidates[Math.floor(Math.random() * candidates.length)];
+    // Find candidate with the fewest pending peer reviews to avoid multiple assignments
+    const candidateIds = candidates.map(c => c.id);
+    const { data: pendingReviews } = await adminClient
+      .from('ritual_reviews')
+      .select('reviewer_id')
+      .eq('review_type', 'PEER')
+      .eq('status', 'pending')
+      .in('reviewer_id', candidateIds);
+      
+    const reviewCounts: Record<string, number> = {};
+    candidateIds.forEach(id => reviewCounts[id] = 0);
+    if (pendingReviews) {
+      pendingReviews.forEach(r => {
+        reviewCounts[r.reviewer_id] = (reviewCounts[r.reviewer_id] || 0) + 1;
+      });
+    }
+    
+    const minCount = Math.min(...Object.values(reviewCounts));
+    const bestCandidates = candidates.filter(c => reviewCounts[c.id] === minCount);
+    
+    // Randomly pick among the best candidates (those tied for the least reviews)
+    const randomPeer = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
+
     const { data: existingPeerRev } = await adminClient
       .from('ritual_reviews')
       .select('id')
