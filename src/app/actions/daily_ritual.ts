@@ -312,19 +312,19 @@ export async function submitDailyMissionV2(
   }
 
   if (candidates.length > 0) {
-    // Find candidate with the fewest pending peer reviews to avoid multiple assignments
+    // Find candidate with the fewest total peer reviews to avoid multiple assignments
     const candidateIds = candidates.map(c => c.id);
-    const { data: pendingReviews } = await adminClient
+    const { data: totalReviews } = await adminClient
       .from('ritual_reviews')
       .select('reviewer_id')
       .eq('review_type', 'PEER')
-      .eq('status', 'pending')
+      // Removed status='pending' to ensure we count BOTH completed and pending for strict daily load balancing
       .in('reviewer_id', candidateIds);
       
     const reviewCounts: Record<string, number> = {};
     candidateIds.forEach(id => reviewCounts[id] = 0);
-    if (pendingReviews) {
-      pendingReviews.forEach(r => {
+    if (totalReviews) {
+      totalReviews.forEach(r => {
         reviewCounts[r.reviewer_id] = (reviewCounts[r.reviewer_id] || 0) + 1;
       });
     }
