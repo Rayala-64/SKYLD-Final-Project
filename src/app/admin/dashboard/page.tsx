@@ -3,7 +3,7 @@
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
-import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, BookOpen, Plus, Loader2, Edit2, Trash2, Trophy, CheckCircle2, Clock, Eye, Megaphone, Send } from "lucide-react";
+import { Users, LayoutDashboard, KeyRound, Shield, AlertTriangle, Activity, BookOpen, Plus, Loader2, Edit2, Trash2, Trophy, CheckCircle2, Clock, Eye, Megaphone, Send, Search } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { getAdminDashboardData, deleteWordCard, generateInviteCode, createAnnouncement } from "@/app/actions/admin";
@@ -38,6 +38,9 @@ export default function AdminDashboard() {
   const [broadcastPodId, setBroadcastPodId] = useState("");
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [broadcastSuccess, setBroadcastSuccess] = useState(false);
+
+  const [reviewSearch, setReviewSearch] = useState("");
+  const [hideCompleted, setHideCompleted] = useState(false);
 
   const handlePostBroadcast = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -449,6 +452,29 @@ export default function AdminDashboard() {
                 </div>
               </div>
 
+              {/* Utility Bar: Search and Filters */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-4">
+                <div className="relative w-full sm:w-80">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input 
+                    type="text" 
+                    placeholder="Search by student name or email..." 
+                    value={reviewSearch}
+                    onChange={(e) => setReviewSearch(e.target.value)}
+                    className="pl-9 pr-4 py-2 bg-background border border-border/60 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 outline-none w-full"
+                  />
+                </div>
+                <label className="flex items-center gap-2 cursor-pointer text-sm font-medium">
+                  <input 
+                    type="checkbox" 
+                    checked={hideCompleted}
+                    onChange={(e) => setHideCompleted(e.target.checked)}
+                    className="rounded border-border/60 text-primary focus:ring-primary/50 bg-background"
+                  />
+                  Hide Completed Reviews
+                </label>
+              </div>
+
               {/* Unified Table */}
               <div className="overflow-x-auto rounded-xl border border-border/50 bg-muted/10">
                 <table className="w-full text-left text-sm">
@@ -464,7 +490,16 @@ export default function AdminDashboard() {
                   </thead>
                   <tbody className="divide-y divide-border/30">
                     {data?.reviewTracker && data.reviewTracker.length > 0 ? (
-                      data.reviewTracker.map((item, idx) => (
+                      data.reviewTracker.filter((item: any) => {
+                        if (hideCompleted && item.buddyReviewer?.status === 'completed' && item.peerReviewer?.status === 'completed') {
+                          return false;
+                        }
+                        const searchLower = reviewSearch.toLowerCase();
+                        if (reviewSearch && !item.studentName?.toLowerCase().includes(searchLower) && !item.studentEmail?.toLowerCase().includes(searchLower)) {
+                          return false;
+                        }
+                        return true;
+                      }).map((item, idx) => (
                         <tr key={idx} className="hover:bg-muted/20 transition-colors">
                           <td className="py-3.5 px-4">
                             <div className="font-semibold text-foreground">{item.studentName}</div>

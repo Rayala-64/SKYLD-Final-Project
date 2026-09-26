@@ -5,7 +5,7 @@ import { PremiumCard } from "@/components/ui/custom/PremiumCard";
 import { PremiumButton } from "@/components/ui/custom/PremiumButton";
 import { useState, useEffect } from "react";
 import { getRosterData, createOrganization, assignStudent, createBuddyPair, assignMentor, deleteOrganization, assignPodLeader, deleteStudent, deleteMentor } from "@/app/actions/admin_roster";
-import { Loader2, Users, ArrowRight, UserPlus, Trash2, Crown } from "lucide-react";
+import { Loader2, Users, ArrowRight, UserPlus, Trash2, Crown, Search } from "lucide-react";
 
 export default function RosterPage() {
   const [data, setData] = useState<any>(null);
@@ -22,6 +22,7 @@ export default function RosterPage() {
   const [buddyPod, setBuddyPod] = useState("");
   const [buddy1, setBuddy1] = useState("");
   const [buddy2, setBuddy2] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
 
   useEffect(() => {
     loadData();
@@ -264,6 +265,24 @@ export default function RosterPage() {
                 </div>
               )}
             </PremiumCard>
+
+            <PremiumCard className="p-6">
+              <h2 className="text-lg font-bold mb-4 border-b border-border/50 pb-2">Active Buddy Pairs</h2>
+              <div className="grid grid-cols-1 gap-4">
+                {data?.buddy_pairs.map((pair: any) => {
+                  const s1 = data.students.find((s:any)=>s.id === pair.user1_id)?.full_name || 'Unknown';
+                  const s2 = data.students.find((s:any)=>s.id === pair.user2_id)?.full_name || 'Unknown';
+                  const pod = data.pods.find((p:any)=>p.id === pair.pod_id)?.name || 'Unknown Pod';
+                  return (
+                    <div key={pair.id} className="p-4 bg-muted/20 border border-border/50 rounded-xl flex items-center justify-between">
+                      <div className="text-sm font-medium">{s1} <ArrowRight className="inline w-3 h-3 text-muted-foreground mx-1" /> {s2}</div>
+                      <div className="text-xs text-muted-foreground bg-background px-2 py-1 rounded border border-border/50">{pod}</div>
+                    </div>
+                  );
+                })}
+                {data?.buddy_pairs.length === 0 && <div className="text-sm text-muted-foreground">No active buddy pairs.</div>}
+              </div>
+            </PremiumCard>
           </div>
 
           {/* Manage Students */}
@@ -332,7 +351,19 @@ export default function RosterPage() {
             </PremiumCard>
 
             <PremiumCard className="p-6">
-              <h2 className="text-lg font-bold mb-6 border-b border-border/50 pb-2">Student Assignments</h2>
+              <div className="flex items-center justify-between mb-6 border-b border-border/50 pb-2">
+                <h2 className="text-lg font-bold">Student Assignments</h2>
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                  <input 
+                    type="text" 
+                    placeholder="Search students..." 
+                    value={studentSearch}
+                    onChange={(e) => setStudentSearch(e.target.value)}
+                    className="pl-9 pr-4 py-1.5 bg-background border border-border/60 rounded-lg text-sm focus:ring-2 focus:ring-primary/50 outline-none w-64"
+                  />
+                </div>
+              </div>
               
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-left">
@@ -346,7 +377,7 @@ export default function RosterPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {data?.students.map((student: any) => (
+                    {data?.students.filter((s:any) => s.full_name.toLowerCase().includes(studentSearch.toLowerCase())).map((student: any) => (
                       <tr key={student.id} className="border-b border-border/50 hover:bg-muted/20">
                         <td className="px-4 py-3 font-medium flex items-center gap-2">
                           {student.full_name}
@@ -464,24 +495,6 @@ export default function RosterPage() {
                     )}
                   </tbody>
                 </table>
-              </div>
-            </PremiumCard>
-
-            <PremiumCard className="p-6">
-              <h2 className="text-lg font-bold mb-4 border-b border-border/50 pb-2">Active Buddy Pairs</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {data?.buddy_pairs.map((pair: any) => {
-                  const s1 = data.students.find((s:any)=>s.id === pair.user1_id)?.full_name || 'Unknown';
-                  const s2 = data.students.find((s:any)=>s.id === pair.user2_id)?.full_name || 'Unknown';
-                  const pod = data.pods.find((p:any)=>p.id === pair.pod_id)?.name || 'Unknown Pod';
-                  return (
-                    <div key={pair.id} className="p-4 bg-muted/20 border border-border/50 rounded-xl flex items-center justify-between">
-                      <div className="text-sm font-medium">{s1} <ArrowRight className="inline w-3 h-3 text-muted-foreground mx-1" /> {s2}</div>
-                      <div className="text-xs text-muted-foreground bg-background px-2 py-1 rounded border border-border/50">{pod}</div>
-                    </div>
-                  );
-                })}
-                {data?.buddy_pairs.length === 0 && <div className="text-sm text-muted-foreground">No active buddy pairs.</div>}
               </div>
             </PremiumCard>
 

@@ -63,6 +63,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
   } else {
     sidebarLinks = [
       { name: "Dashboard", href: "/vault/dashboard", icon: LayoutDashboard },
+      { name: "Learning History", href: "/vault/history", icon: BookOpen },
       { name: "Learning Path", href: "/vault/path", icon: MapIcon },
       { name: "Word Vault", href: "/vault/library", icon: BookMarked },
       { name: "Review Queue", href: "/vault/review", icon: MessageSquareCheck },

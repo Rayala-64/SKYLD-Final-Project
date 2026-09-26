@@ -151,34 +151,32 @@ export async function submitDailyMissionV2(
     throw new Error(error.message);
   }
 
-  // Trigger immediate AI evaluation in background
-  (async () => {
-    try {
-      const { data: wordRow } = await adminClient.from('word_cards').select('word').eq('id', wordCardId).single();
-      const wordText = wordRow?.word || 'candid';
-      
-      const [reflectionRes, speechRes] = await Promise.all([
-        analyzeReflectionInternal(userId, wordText, reflectionText),
-        videoUrl ? analyzeSpeechInternal(userId, wordText, videoUrl) : Promise.resolve({ status: 'completed', data: null, error: undefined })
-      ]);
+  // Trigger AI evaluation immediately before completing the request
+  try {
+    const { data: wordRow } = await adminClient.from('word_cards').select('word').eq('id', wordCardId).single();
+    const wordText = wordRow?.word || 'candid';
+    
+    const [reflectionRes, speechRes] = await Promise.all([
+      analyzeReflectionInternal(userId, wordText, reflectionText),
+      videoUrl ? analyzeSpeechInternal(userId, wordText, videoUrl) : Promise.resolve({ status: 'completed', data: null, error: undefined })
+    ]);
 
-      const updatePayload: any = {};
-      if (reflectionRes?.data) {
-        const fb: any = reflectionRes.data;
-        fb.comment = fb.improvement_suggestions?.[0] || 'Great work!';
-        updatePayload.reflection_ai_feedback = fb;
-      }
-      if (speechRes?.data) {
-        updatePayload.video_ai_feedback = speechRes.data;
-      }
-
-      if (Object.keys(updatePayload).length > 0) {
-        await adminClient.from('submissions').update(updatePayload).match({ user_id: userId, word_card_id: wordCardId });
-      }
-    } catch (aiErr) {
-      console.error("Non-blocking immediate AI evaluation error:", aiErr);
+    const updatePayload: any = {};
+    if (reflectionRes?.data) {
+      const fb: any = reflectionRes.data;
+      fb.comment = fb.improvement_suggestions?.[0] || 'Great work!';
+      updatePayload.reflection_ai_feedback = fb;
     }
-  })();
+    if (speechRes?.data) {
+      updatePayload.video_ai_feedback = speechRes.data;
+    }
+
+    if (Object.keys(updatePayload).length > 0) {
+      await adminClient.from('submissions').update(updatePayload).match({ user_id: userId, word_card_id: wordCardId });
+    }
+  } catch (aiErr) {
+    console.error("Immediate AI evaluation error:", aiErr);
+  }
 
   // 0. Award 3 points for recording submission and mark ritual as fully completed
   const { data: { user } } = await supabase.auth.getUser();
@@ -318,7 +316,8 @@ export async function submitDailyMissionV2(
       .from('ritual_reviews')
       .select('reviewer_id')
       .eq('review_type', 'PEER')
-      // Removed status='pending' to ensure we count BOTH completed and pending for strict daily load balancing
+      // Only count reviews assigned in the last 24 hours to ignore past testing junk data
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
       .in('reviewer_id', candidateIds);
       
     const reviewCounts: Record<string, number> = {};
