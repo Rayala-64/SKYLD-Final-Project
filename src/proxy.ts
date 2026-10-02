@@ -75,19 +75,25 @@ export async function proxy(request: NextRequest) {
       if (role === 'student') return NextResponse.redirect(new URL('/vault/dashboard', request.url))
       if (role === 'mentor') return NextResponse.redirect(new URL('/mentor/dashboard', request.url))
       if (role === 'admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url))
-      return NextResponse.redirect(new URL('/', request.url))
+      return NextResponse.redirect(new URL('/vault/dashboard', request.url))
     }
 
     // Role-based route protection
-    if (path.startsWith('/vault') && role !== 'student') {
+    if (path.startsWith('/vault') && role && role !== 'student') {
+      if (role === 'mentor') return NextResponse.redirect(new URL('/mentor/dashboard', request.url))
+      if (role === 'admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url))
       return NextResponse.redirect(new URL('/', request.url))
     }
     
-    if (path.startsWith('/mentor') && role !== 'mentor') {
+    if (path.startsWith('/mentor') && role && role !== 'mentor') {
+      if (role === 'student') return NextResponse.redirect(new URL('/vault/dashboard', request.url))
+      if (role === 'admin') return NextResponse.redirect(new URL('/admin/dashboard', request.url))
       return NextResponse.redirect(new URL('/', request.url))
     }
     
-    if (path.startsWith('/admin') && role !== 'admin') {
+    if (path.startsWith('/admin') && role && role !== 'admin') {
+      if (role === 'student') return NextResponse.redirect(new URL('/vault/dashboard', request.url))
+      if (role === 'mentor') return NextResponse.redirect(new URL('/mentor/dashboard', request.url))
       return NextResponse.redirect(new URL('/', request.url))
     }
   }

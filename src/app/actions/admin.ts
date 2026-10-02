@@ -6,21 +6,18 @@ import { sendEmailNotification } from "@/lib/server/email";
 
 import type { AdminDashboardData } from "@/types/admin";
 
-export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+export async function getAdminDashboardData(): Promise<{ data: AdminDashboardData | null; error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Validate admin role
-  let isAdmin = false;
-  if (user) {
-      const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
-      if (profile && profile.role === 'admin') {
-          isAdmin = true;
-      }
+  if (!user) {
+    return { data: null, error: "Unauthorized: Please log in first." };
   }
 
-  if (!isAdmin) {
-    throw new Error("Unauthorized");
+  // Validate admin role
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+  if (!profile || profile.role !== 'admin') {
+    return { data: null, error: "Unauthorized: Your account does not have Admin permissions." };
   }
 
   // Real data fetching logic with graceful error handling
@@ -169,22 +166,24 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const quarantineStats = await getQuarantineAnalytics();
 
   return {
-    platformStats: {
-      totalStudents,
-      activePods: podsRes.count || 0,
-      wordsLearned: wordsRes.count || 0,
-      avgCompletionRate,
-      pendingInvites: invitesRes.count || 0,
-      pendingAiJobs: pendingAiRes.count || 0,
-      failedAiJobs: failedAiRes.count || 0
-    },
-    recentReflections,
-    upcomingWords,
-    recentActivity,
-    allUsers,
-    pods,
-    reviewTracker,
-    quarantineStats
+    data: {
+      platformStats: {
+        totalStudents,
+        activePods: podsRes.count || 0,
+        wordsLearned: wordsRes.count || 0,
+        avgCompletionRate,
+        pendingInvites: invitesRes.count || 0,
+        pendingAiJobs: pendingAiRes.count || 0,
+        failedAiJobs: failedAiRes.count || 0
+      },
+      recentReflections,
+      upcomingWords,
+      recentActivity,
+      allUsers,
+      pods,
+      reviewTracker,
+      quarantineStats
+    }
   };
 }
 

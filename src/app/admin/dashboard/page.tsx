@@ -64,13 +64,22 @@ export default function AdminDashboard() {
     }
   };
 
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
   const loadData = () => {
     setLoading(true);
-    getAdminDashboardData().then(d => {
-      setData(d);
+    setErrorMsg(null);
+    getAdminDashboardData().then(res => {
+      if (res.error || !res.data) {
+        setErrorMsg(res.error || "Failed to load dashboard");
+        setData(null);
+      } else {
+        setData(res.data);
+      }
       setLoading(false);
     }).catch(e => {
       console.error(e);
+      setErrorMsg(e.message || "Failed to load dashboard");
       setLoading(false);
     });
   };
@@ -122,8 +131,19 @@ export default function AdminDashboard() {
       <DashboardLayout>
         <div className="max-w-6xl mx-auto space-y-8 pb-12 flex flex-col justify-center items-center h-[50vh] text-center">
           <AlertTriangle className="w-12 h-12 text-destructive mb-4" />
-          <h2 className="text-2xl font-bold">Failed to load dashboard</h2>
-          <p className="text-muted-foreground mt-2">You may not be authorized, or there was a database error.</p>
+          <h2 className="text-2xl font-bold">Access Restricted</h2>
+          <p className="text-muted-foreground mt-2 max-w-md">
+            {errorMsg || "Your account does not have Admin privileges."}
+          </p>
+          <div className="p-4 bg-card/60 border border-border/60 rounded-xl text-left text-xs space-y-1.5 font-mono text-muted-foreground mt-4 max-w-md">
+            <p className="font-bold text-foreground">💡 How to grant Admin access in Supabase:</p>
+            <p>1. Open <span className="text-primary">Supabase Dashboard</span> → <span className="text-primary">Table Editor</span></p>
+            <p>2. Select the <span className="text-primary">users</span> table</p>
+            <p>3. Find your user email and update <span className="text-primary">role</span> to <span className="text-primary">"admin"</span></p>
+          </div>
+          <PremiumButton onClick={() => router.push("/vault/dashboard")} className="mt-6">
+            Return to Student Dashboard
+          </PremiumButton>
         </div>
       </DashboardLayout>
     );

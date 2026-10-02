@@ -369,7 +369,7 @@ export async function submitDailyMission(
   }
   
   // Instantly trigger the AI processor in the background to eliminate cron delay
-  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-word-vault.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-final.netlify.app';
   fetch(`${baseUrl}/api/cron/process-ai`, {
     method: 'POST',
     headers: {

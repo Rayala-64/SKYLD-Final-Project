@@ -29,6 +29,7 @@ export default function LearnPage() {
   const [quizAnswer, setQuizAnswer] = useState<string | null>(null);
   const [applySentence, setApplySentence] = useState("");
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
+  const [shuffledOptions, setShuffledOptions] = useState<string[]>([]);
 
   const supabase = createClient();
 
@@ -63,6 +64,10 @@ export default function LearnPage() {
       setWordData(res.wordCard);
       setRitual(res.ritual);
 
+      const fallbackOptions = res.wordCard ? [res.wordCard.definition || res.wordCard.meaning, "A rare type of mineral found in deep caves", "To quickly run away from danger", "The process of creating something new"] : [];
+      const rawOptions = res.wordCard?.activity?.questions?.[0]?.options || fallbackOptions;
+      setShuffledOptions([...rawOptions].sort(() => Math.random() - 0.5));
+
       // Auto-mark Step 1 (Open Vault) if not done
       const step1 = res.ritual.steps?.find((s: any) => s.step_number === 1);
       if (!step1) {
@@ -92,6 +97,20 @@ export default function LearnPage() {
     if (!ritual) return;
     setIsSubmitting(true);
     try {
+      // Validate Step 3 Knowledge Challenge
+      if (stepNumber === 3) {
+        const isCorrect = wordData?.activity?.questions?.[0] 
+          ? quizAnswer === wordData.activity.questions[0].correctAnswer
+          : (quizAnswer === wordData.meaning || quizAnswer === wordData.definition);
+          
+        if (!isCorrect) {
+           alert("Incorrect answer! Please review the word's meaning and try again.");
+           setQuizAnswer(null);
+           setIsSubmitting(false);
+           return;
+        }
+      }
+
       // If Step 5, we also need to submit the actual video artifact
       if (stepNumber === 5) {
         const isCorrect = wordData?.activity?.questions?.[0] 
@@ -138,8 +157,6 @@ export default function LearnPage() {
     );
   }
 
-  const fallbackOptions = wordData ? [wordData.definition || wordData.meaning, "A rare type of mineral found in deep caves", "To quickly run away from danger", "The process of creating something new"] : [];
-  const quizOptions = wordData?.activity?.questions?.[0]?.options || fallbackOptions;
   const completedSteps = currentStep === 10 ? 10 : (ritual?.steps?.length || 1);
   const stepProgress = (completedSteps / 10) * 100;
   
@@ -215,7 +232,7 @@ export default function LearnPage() {
                       </h2>
                     </div>
                     <div className="space-y-4 max-w-2xl mx-auto">
-                      {quizOptions.map((opt: string, idx: number) => (
+                      {shuffledOptions.map((opt: string, idx: number) => (
                         <button
                           key={idx}
                           onClick={() => setQuizAnswer(opt)}

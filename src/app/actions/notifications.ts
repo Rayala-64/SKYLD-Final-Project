@@ -208,7 +208,7 @@ export async function sendBuddyNudge(targetStudentId: string, customMessage?: st
               <h2 style="color: #fbbf24; margin-top: 0; font-size: 18px;">⚡ ${senderName} nudged you!</h2>
               <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">${message}</p>
               <div style="text-align: center; margin: 28px 0 12px 0;">
-                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-pilot.netlify.app'}/vault/dashboard" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-final.netlify.app'}/vault/dashboard" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
                   Complete Your Ritual →
                 </a>
               </div>

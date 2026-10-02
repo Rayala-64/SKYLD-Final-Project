@@ -439,7 +439,7 @@ export async function submitDailyMissionV2(
                     </p>
                     <p style="color: #94a3b8; font-size: 13px;">You can review their reflection, video, and provide feedback from the mentor dashboard.</p>
                     <div style="text-align: center; margin: 28px 0 12px 0;">
-                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-pilot.netlify.app'}/mentor/dashboard" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-final.netlify.app'}/mentor/dashboard" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
                         Open Mentor Dashboard →
                       </a>
                     </div>
