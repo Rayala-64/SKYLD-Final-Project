@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
+import { sendEmailNotification, getRitualDeadlineEmailHtml } from "@/lib/server/email";
 
 function getAdminClient() {
   return createAdminClient(
@@ -30,6 +31,18 @@ async function handleCron(req: NextRequest) {
     const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
     const notificationsCreated: any[] = [];
 
+    // Calculate hours remaining until midnight IST
+    const nowIST = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
+    const hoursRemaining = Math.max(1, 24 - nowIST.getHours());
+
+    // Get today's word
+    const { data: todayWord } = await adminClient
+      .from("word_cards")
+      .select("word")
+      .eq("active_date", today)
+      .maybeSingle();
+    const wordText = todayWord?.word || "today's word";
+
     // =========================================================================
     // 1. Check Student Daily Ritual Deadlines (Incomplete rituals today)
     // =========================================================================
@@ -59,6 +72,7 @@ async function handleCron(req: NextRequest) {
             .maybeSingle();
 
           if (!existingAlert) {
+            // In-app notification
             const { data: notif } = await adminClient
               .from("notifications")
               .insert({
@@ -73,6 +87,20 @@ async function handleCron(req: NextRequest) {
               .single();
 
             if (notif) notificationsCreated.push(notif);
+
+            // Email notification using the pre-built HTML template
+            if (student.email) {
+              try {
+                await sendEmailNotification({
+                  to: student.email,
+                  subject: `🔥 ${hoursRemaining}h left — Complete your ritual for "${wordText}"`,
+                  text: `Hi ${student.full_name}, you have approximately ${hoursRemaining} hours remaining to complete your 10-step ritual for today's word: ${wordText}.`,
+                  html: getRitualDeadlineEmailHtml(student.full_name || "Student", wordText, hoursRemaining),
+                });
+              } catch (emailErr) {
+                console.error(`Non-blocking deadline email error for ${student.email}:`, emailErr);
+              }
+            }
           }
         }
       }

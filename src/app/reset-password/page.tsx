@@ -18,18 +18,17 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
+
   useEffect(() => {
-    // The createBrowserClient automatically parses the #access_token from the URL hash 
-    // and establishes the session when using Supabase Implicit Flow.
+    // With PKCE flow, the session is set in a cookie by /auth/callback before we land here.
+    // We check once — if the session is present we show the form; otherwise show an error.
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        // If there's no session and no hash in the URL, the link is invalid
-        if (typeof window !== "undefined" && !window.location.hash.includes('type=recovery')) {
-           router.push("/login?error=" + encodeURIComponent("Invalid or expired password reset session. Please request a new link."));
-        }
-      }
+      setHasSession(!!session);
+      setSessionChecked(true);
     });
-  }, [router, supabase.auth]);
+  }, [supabase.auth]);
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -90,28 +89,55 @@ export default function ResetPasswordPage() {
             </p>
           </div>
 
-          {error && (
-            <FadeIn className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
-              <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
-              <p className="text-sm text-destructive font-medium leading-relaxed">{error}</p>
+          {/* Loading state while we check the session cookie */}
+          {!sessionChecked && (
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+          )}
+
+          {/* Invalid / expired link */}
+          {sessionChecked && !hasSession && (
+            <FadeIn className="space-y-4">
+              <div className="p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <p className="text-sm text-destructive font-medium leading-relaxed">
+                  This reset link has expired or was already used. Please request a new one.
+                </p>
+              </div>
+              <a href="/forgot-password" className="block w-full text-center text-sm text-primary hover:underline mt-2">
+                Request a new reset link →
+              </a>
             </FadeIn>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="space-y-2">
-              <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">New Password</Label>
-              <Input id="password" name="password" type="password" required minLength={6} placeholder="At least 6 characters" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Confirm Password</Label>
-              <Input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} placeholder="Repeat new password" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
-            </div>
-            
-            <PremiumButton type="submit" disabled={loading} className="w-full h-12 mt-6 text-base shadow-lg glow-primary">
-              <KeyRound className="w-4 h-4 mr-2" /> {loading ? "Updating..." : "Update Password"}
-            </PremiumButton>
-          </form>
+          {/* Password form — only shown when session is confirmed */}
+          {sessionChecked && hasSession && (
+            <>
+              {error && (
+                <FadeIn className="mb-6 p-4 rounded-lg bg-destructive/10 border border-destructive/20 flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                  <p className="text-sm text-destructive font-medium leading-relaxed">{error}</p>
+                </FadeIn>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">New Password</Label>
+                  <Input id="password" name="password" type="password" required minLength={6} placeholder="At least 6 characters" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword" className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Confirm Password</Label>
+                  <Input id="confirmPassword" name="confirmPassword" type="password" required minLength={6} placeholder="Repeat new password" className="h-12 bg-background/50 border-white/10 focus-visible:ring-primary focus-visible:border-primary transition-all" />
+                </div>
+                
+                <PremiumButton type="submit" disabled={loading} className="w-full h-12 mt-6 text-base shadow-lg glow-primary">
+                  <KeyRound className="w-4 h-4 mr-2" /> {loading ? "Updating..." : "Update Password"}
+                </PremiumButton>
+              </form>
+            </>
+          )}
         </PremiumCard>
       </FadeIn>
     </div>

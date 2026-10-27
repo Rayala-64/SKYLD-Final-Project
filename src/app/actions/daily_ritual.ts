@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import { analyzeReflectionInternal, analyzeSpeechInternal } from "@/lib/server/ai";
 import { sendInAppNotification } from "./notifications";
+import { sendEmailNotification } from "@/lib/server/email";
 
 function getAdminClient() {
   return createAdminClient(
@@ -150,36 +151,7 @@ export async function submitDailyMissionV2(
     throw new Error(error.message);
   }
 
-  // Trigger immediate AI evaluation in background
-  (async () => {
-    try {
-      const { data: wordRow } = await adminClient.from('word_cards').select('word').eq('id', wordCardId).single();
-      const wordText = wordRow?.word || 'candid';
-      
-      const [reflectionRes, speechRes] = await Promise.all([
-        analyzeReflectionInternal(userId, wordText, reflectionText),
-        videoUrl ? analyzeSpeechInternal(userId, wordText, videoUrl) : Promise.resolve({ status: 'completed', data: null, error: undefined })
-      ]);
-
-      const updatePayload: any = {};
-      if (reflectionRes?.data) {
-        const fb: any = reflectionRes.data;
-        fb.comment = fb.improvement_suggestions?.[0] || 'Great work!';
-        updatePayload.reflection_ai_feedback = fb;
-      }
-      if (speechRes?.data) {
-        updatePayload.video_ai_feedback = speechRes.data;
-      }
-
-      if (Object.keys(updatePayload).length > 0) {
-        await adminClient.from('submissions').update(updatePayload).match({ user_id: userId, word_card_id: wordCardId });
-      }
-    } catch (aiErr) {
-      console.error("Non-blocking immediate AI evaluation error:", aiErr);
-    }
-  })();
-
-  // 0. Award 3 points for recording submission and mark ritual as fully completed
+  // 1. Award 3 points for recording submission and mark Step 5 complete
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     await supabase.rpc('complete_ritual_step', {
@@ -212,6 +184,33 @@ export async function submitDailyMissionV2(
     } catch (e) {
       console.error("Failed to apply XP/streak rewards in V2:", e);
     }
+  }
+
+  // 2. AI Evaluation: evaluate reflection text immediately, and speech video asynchronously (prevents Netlify 10s function timeout)
+  try {
+    const { data: wordRow } = await adminClient.from('word_cards').select('word').eq('id', wordCardId).single();
+    const wordText = wordRow?.word || 'candid';
+    
+    // Quick text reflection analysis (typically < 1.5 seconds)
+    const reflectionRes = await analyzeReflectionInternal(userId, wordText, reflectionText);
+    if (reflectionRes?.data) {
+      const fb: any = reflectionRes.data;
+      fb.comment = fb.improvement_suggestions?.[0] || 'Great work!';
+      await adminClient.from('submissions').update({ reflection_ai_feedback: fb }).match({ user_id: userId, word_card_id: wordCardId });
+    }
+
+    // Video speech analysis: execute asynchronously so long 50-60s videos never cause 504 server timeouts
+    if (videoUrl) {
+      analyzeSpeechInternal(userId, wordText, videoUrl)
+        .then(async (speechRes) => {
+          if (speechRes?.data) {
+            await adminClient.from('submissions').update({ video_ai_feedback: speechRes.data }).match({ user_id: userId, word_card_id: wordCardId });
+          }
+        })
+        .catch((err) => console.error("Async speech evaluation error:", err));
+    }
+  } catch (aiErr) {
+    console.error("Immediate AI evaluation error:", aiErr);
   }
 
   // 1. Assign Buddy Review (using admin client to safely write cross-user review queue)
@@ -253,6 +252,20 @@ export async function submitDailyMissionV2(
           entityType: "RITUAL",
           entityId: ritualId
         });
+      // Send email notification to buddy
+      const { data: buddyProfile } = await adminClient
+        .from('users')
+        .select('email, full_name')
+        .eq('id', buddyId)
+        .single();
+      if (buddyProfile?.email) {
+        await sendEmailNotification({
+          to: buddyProfile.email,
+          subject: "Buddy Review Assigned",
+          text: `${profile?.full_name || 'Your buddy'} just submitted their 10-step ritual. Please review their submission!`,
+          html: `<p>${profile?.full_name || 'Your buddy'} just submitted their 10-step ritual. Please review their submission!</p>`
+        });
+      }
       }
     }
   }
@@ -297,7 +310,30 @@ export async function submitDailyMissionV2(
   }
 
   if (candidates.length > 0) {
-    const randomPeer = candidates[Math.floor(Math.random() * candidates.length)];
+    // Find candidate with the fewest total peer reviews to avoid multiple assignments
+    const candidateIds = candidates.map(c => c.id);
+    const { data: totalReviews } = await adminClient
+      .from('ritual_reviews')
+      .select('reviewer_id')
+      .eq('review_type', 'PEER')
+      // Only count reviews assigned in the last 24 hours to ignore past testing junk data
+      .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString())
+      .in('reviewer_id', candidateIds);
+      
+    const reviewCounts: Record<string, number> = {};
+    candidateIds.forEach(id => reviewCounts[id] = 0);
+    if (totalReviews) {
+      totalReviews.forEach(r => {
+        reviewCounts[r.reviewer_id] = (reviewCounts[r.reviewer_id] || 0) + 1;
+      });
+    }
+    
+    const minCount = Math.min(...Object.values(reviewCounts));
+    const bestCandidates = candidates.filter(c => reviewCounts[c.id] === minCount);
+    
+    // Randomly pick among the best candidates (those tied for the least reviews)
+    const randomPeer = bestCandidates[Math.floor(Math.random() * bestCandidates.length)];
+
     const { data: existingPeerRev } = await adminClient
       .from('ritual_reviews')
       .select('id')
@@ -325,8 +361,101 @@ export async function submitDailyMissionV2(
           entityType: "RITUAL",
           entityId: ritualId
         });
+      // Send email notification to peer reviewer
+      const { data: peerProfile } = await adminClient
+        .from('users')
+        .select('email, full_name')
+        .eq('id', randomPeer.id)
+        .single();
+      if (peerProfile?.email) {
+        await sendEmailNotification({
+          to: peerProfile.email,
+          subject: "Peer Review Assigned",
+          text: `You have been selected to provide an objective external review for a peer's 10-step ritual.`,
+          html: `<p>You have been selected to provide an objective external review for a peer's 10-step ritual.</p>`
+        });
+      }
       }
     }
+  }
+
+  // 3. Notify Pod Mentor(s) that a student completed their ritual
+  try {
+    const studentPodId = podId || (await (async () => {
+      const { data: p } = await adminClient.from('users').select('pod_id').eq('id', userId).single();
+      return p?.pod_id;
+    })());
+
+    if (studentPodId) {
+      const { data: mentors } = await adminClient
+        .from('users')
+        .select('id, email, full_name')
+        .eq('role', 'mentor')
+        .eq('pod_id', studentPodId);
+
+      const { data: studentProfile } = await adminClient
+        .from('users')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+
+      const { data: wordCard } = await adminClient
+        .from('word_cards')
+        .select('word')
+        .eq('id', wordCardId)
+        .single();
+
+      const studentName = studentProfile?.full_name || 'A student';
+      const wordText = wordCard?.word || 'today\'s word';
+
+      if (mentors && mentors.length > 0) {
+        for (const mentor of mentors) {
+          // In-app notification
+          await sendInAppNotification({
+            userId: mentor.id,
+            type: "STUDENT_RITUAL_COMPLETED",
+            title: "📋 Student Ritual Completed",
+            message: `${studentName} has completed their 10-step ritual for "${wordText}". Review their submission when ready.`,
+            entityType: "RITUAL",
+            entityId: ritualId
+          });
+
+          // Email notification
+          if (mentor.email) {
+            await sendEmailNotification({
+              to: mentor.email,
+              subject: `📋 ${studentName} completed their daily ritual`,
+              text: `${studentName} has completed their 10-step ritual for "${wordText}". Review their submission when ready.`,
+              html: `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px; background-color: #0f172a; color: #f8fafc; border-radius: 16px;">
+                  <div style="text-align: center; margin-bottom: 24px;">
+                    <h1 style="color: #6366f1; margin: 0; font-size: 24px;">SKYLD</h1>
+                    <p style="color: #94a3b8; font-size: 14px; margin-top: 4px;">Mentor Dashboard</p>
+                  </div>
+                  <div style="background-color: #1e293b; padding: 20px; border-radius: 12px; border: 1px solid #334155;">
+                    <h2 style="color: #22c55e; margin-top: 0; font-size: 18px;">📋 Ritual Completed</h2>
+                    <p style="color: #cbd5e1; font-size: 14px; line-height: 1.6;">
+                      <strong>${studentName}</strong> has completed their 10-step ritual for <strong>"${wordText}"</strong>.
+                    </p>
+                    <p style="color: #94a3b8; font-size: 13px;">You can review their reflection, video, and provide feedback from the mentor dashboard.</p>
+                    <div style="text-align: center; margin: 28px 0 12px 0;">
+                      <a href="${process.env.NEXT_PUBLIC_SITE_URL || 'https://skyld-final.netlify.app'}/mentor/dashboard" style="background-color: #6366f1; color: #ffffff; padding: 12px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+                        Open Mentor Dashboard →
+                      </a>
+                    </div>
+                  </div>
+                  <p style="text-align: center; color: #64748b; font-size: 12px; margin-top: 24px;">
+                    © ${new Date().getFullYear()} SKYLD. All rights reserved.
+                  </p>
+                </div>
+              `,
+            });
+          }
+        }
+      }
+    }
+  } catch (mentorNotifErr) {
+    console.error("Non-blocking mentor notification error:", mentorNotifErr);
   }
 
   return { success: true };

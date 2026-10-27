@@ -2,6 +2,17 @@
  * Transactional Email Dispatcher for SKYLD Platform
  * Compatible with Resend Free Tier (3,000 emails/month) or Nodemailer / Gmail SMTP ($0).
  */
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  host: "smtp.gmail.com",
+  port: 587,
+  secure: false, // use TLS
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 interface SendEmailParams {
   to: string;
@@ -72,4 +83,32 @@ export function getRitualDeadlineEmailHtml(studentName: string, word: string, ho
       </p>
     </div>
   `;
+}
+
+/**
+ * Send an email notification using Nodemailer and Gmail SMTP (For Pilot)
+ */
+export async function sendEmailNotification({
+  to,
+  subject,
+  text,
+  html,
+}: {
+  to: string;
+  subject: string;
+  text: string;
+  html?: string;
+}) {
+  try {
+    await transporter.sendMail({
+      from: `SKYLD System <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      text,
+      html: html ?? `<p>${text}</p>`,
+    });
+    console.log(`📧 [GMAIL DISPATCHED] To: ${to} | Subject: "${subject}"`);
+  } catch (err) {
+    console.error("Failed to send email via Gmail:", err);
+  }
 }

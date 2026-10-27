@@ -5,17 +5,22 @@ import { createClient } from '@/utils/supabase/server'
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
-  // if "next" is in param, use it as the redirect URL
-  const next = searchParams.get('next') ?? '/'
+  const type = searchParams.get('type')
+
+  // If "next" is in the param use it; for password recovery always go to /reset-password
+  let next = searchParams.get('next') ?? '/'
+  if (type === 'recovery' && next === '/') {
+    next = '/reset-password'
+  }
 
   if (code) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
-    
+
     if (!error) {
       const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
       const isLocalhost = process.env.NODE_ENV === 'development'
-      
+
       if (isLocalhost) {
         // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
         return NextResponse.redirect(`${origin}${next}`)

@@ -2,24 +2,22 @@
 import { createClient } from "@/utils/supabase/server";
 import { createClient as createAdminClient } from "@supabase/supabase-js";
 import crypto from "crypto";
+import { sendEmailNotification } from "@/lib/server/email";
 
 import type { AdminDashboardData } from "@/types/admin";
 
-export async function getAdminDashboardData(): Promise<AdminDashboardData> {
+export async function getAdminDashboardData(): Promise<{ data: AdminDashboardData | null; error?: string }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Validate admin role
-  let isAdmin = false;
-  if (user) {
-      const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
-      if (profile && profile.role === 'admin') {
-          isAdmin = true;
-      }
+  if (!user) {
+    return { data: null, error: "Unauthorized: Please log in first." };
   }
 
-  if (!isAdmin) {
-    throw new Error("Unauthorized");
+  // Validate admin role
+  const { data: profile } = await supabase.from('users').select('role').eq('id', user.id).single();
+  if (!profile || profile.role !== 'admin') {
+    return { data: null, error: "Unauthorized: Your account does not have Admin permissions." };
   }
 
   // Real data fetching logic with graceful error handling
@@ -168,22 +166,24 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
   const quarantineStats = await getQuarantineAnalytics();
 
   return {
-    platformStats: {
-      totalStudents,
-      activePods: podsRes.count || 0,
-      wordsLearned: wordsRes.count || 0,
-      avgCompletionRate,
-      pendingInvites: invitesRes.count || 0,
-      pendingAiJobs: pendingAiRes.count || 0,
-      failedAiJobs: failedAiRes.count || 0
-    },
-    recentReflections,
-    upcomingWords,
-    recentActivity,
-    allUsers,
-    pods,
-    reviewTracker,
-    quarantineStats
+    data: {
+      platformStats: {
+        totalStudents,
+        activePods: podsRes.count || 0,
+        wordsLearned: wordsRes.count || 0,
+        avgCompletionRate,
+        pendingInvites: invitesRes.count || 0,
+        pendingAiJobs: pendingAiRes.count || 0,
+        failedAiJobs: failedAiRes.count || 0
+      },
+      recentReflections,
+      upcomingWords,
+      recentActivity,
+      allUsers,
+      pods,
+      reviewTracker,
+      quarantineStats
+    }
   };
 }
 
@@ -315,9 +315,9 @@ export async function createAnnouncement(title: string, body: string, scope: 'gl
     throw new Error(`Unable to create announcement: ${error.message}`);
   }
 
-  // Broadcast in-app notifications to targeted users
+  // Broadcast in-app notifications and emails to targeted users
   try {
-    let query = adminClient.from('users').select('id');
+    let query = adminClient.from('users').select('id, email');
     if (scope === 'pod' && pod_id) {
       query = query.eq('pod_id', pod_id);
     }
@@ -332,6 +332,25 @@ export async function createAnnouncement(title: string, body: string, scope: 'gl
         created_at: new Date().toISOString()
       }));
       await adminClient.from('notifications').insert(notifRows);
+
+      // Broadcast Email Notifications
+      const emailPromises = recipients
+        .filter((r: any) => r.email)
+        .map((r: any) =>
+          sendEmailNotification({
+            to: r.email,
+            subject: `SKYLD Announcement: ${title}`,
+            text: body,
+            html: `
+              <div style="font-family: sans-serif; background-color: #f8fafc; padding: 20px; border-radius: 8px;">
+                <h2 style="color: #4f46e5; margin-top: 0;">${title}</h2>
+                <p style="color: #334155; line-height: 1.6;">${body}</p>
+              </div>
+            `
+          })
+        );
+      
+      await Promise.allSettled(emailPromises);
     }
   } catch (notifErr) {
     console.error("Non-blocking announcement notification error:", notifErr);

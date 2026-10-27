@@ -301,7 +301,7 @@ export default async function StudentDashboard() {
                       <p className="text-xs text-muted-foreground leading-relaxed">
                         {data.buddy.completedToday 
                           ? "Your buddy has completed their 10-step ritual today. Keep up the good work together! 🔥" 
-                          : "Your buddy hasn't completed today's ritual yet. Send them a nudge to keep your shared streak alive!"}
+                          : "Your buddy hasn't completed today's ritual yet. Send them a notification to keep your shared streak alive!"}
                       </p>
                     </div>
                   ) : (
