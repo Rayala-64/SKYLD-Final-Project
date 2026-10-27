@@ -151,34 +151,7 @@ export async function submitDailyMissionV2(
     throw new Error(error.message);
   }
 
-  // Trigger AI evaluation immediately before completing the request
-  try {
-    const { data: wordRow } = await adminClient.from('word_cards').select('word').eq('id', wordCardId).single();
-    const wordText = wordRow?.word || 'candid';
-    
-    const [reflectionRes, speechRes] = await Promise.all([
-      analyzeReflectionInternal(userId, wordText, reflectionText),
-      videoUrl ? analyzeSpeechInternal(userId, wordText, videoUrl) : Promise.resolve({ status: 'completed', data: null, error: undefined })
-    ]);
-
-    const updatePayload: any = {};
-    if (reflectionRes?.data) {
-      const fb: any = reflectionRes.data;
-      fb.comment = fb.improvement_suggestions?.[0] || 'Great work!';
-      updatePayload.reflection_ai_feedback = fb;
-    }
-    if (speechRes?.data) {
-      updatePayload.video_ai_feedback = speechRes.data;
-    }
-
-    if (Object.keys(updatePayload).length > 0) {
-      await adminClient.from('submissions').update(updatePayload).match({ user_id: userId, word_card_id: wordCardId });
-    }
-  } catch (aiErr) {
-    console.error("Immediate AI evaluation error:", aiErr);
-  }
-
-  // 0. Award 3 points for recording submission and mark ritual as fully completed
+  // 1. Award 3 points for recording submission and mark Step 5 complete
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
     await supabase.rpc('complete_ritual_step', {
@@ -211,6 +184,33 @@ export async function submitDailyMissionV2(
     } catch (e) {
       console.error("Failed to apply XP/streak rewards in V2:", e);
     }
+  }
+
+  // 2. AI Evaluation: evaluate reflection text immediately, and speech video asynchronously (prevents Netlify 10s function timeout)
+  try {
+    const { data: wordRow } = await adminClient.from('word_cards').select('word').eq('id', wordCardId).single();
+    const wordText = wordRow?.word || 'candid';
+    
+    // Quick text reflection analysis (typically < 1.5 seconds)
+    const reflectionRes = await analyzeReflectionInternal(userId, wordText, reflectionText);
+    if (reflectionRes?.data) {
+      const fb: any = reflectionRes.data;
+      fb.comment = fb.improvement_suggestions?.[0] || 'Great work!';
+      await adminClient.from('submissions').update({ reflection_ai_feedback: fb }).match({ user_id: userId, word_card_id: wordCardId });
+    }
+
+    // Video speech analysis: execute asynchronously so long 50-60s videos never cause 504 server timeouts
+    if (videoUrl) {
+      analyzeSpeechInternal(userId, wordText, videoUrl)
+        .then(async (speechRes) => {
+          if (speechRes?.data) {
+            await adminClient.from('submissions').update({ video_ai_feedback: speechRes.data }).match({ user_id: userId, word_card_id: wordCardId });
+          }
+        })
+        .catch((err) => console.error("Async speech evaluation error:", err));
+    }
+  } catch (aiErr) {
+    console.error("Immediate AI evaluation error:", aiErr);
   }
 
   // 1. Assign Buddy Review (using admin client to safely write cross-user review queue)

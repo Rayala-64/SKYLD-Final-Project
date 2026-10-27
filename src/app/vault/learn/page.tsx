@@ -16,6 +16,15 @@ import { WordCard16 } from "@/components/vault/WordCard16";
 import { getOrCreateDailyRitual, getOrCreateTodayDailyRitual, submitRitualStep, submitDailyMissionV2 } from "@/app/actions/daily_ritual";
 import { triggerConfetti } from "@/lib/confetti";
 
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export default function LearnPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,7 +75,7 @@ export default function LearnPage() {
 
       const fallbackOptions = res.wordCard ? [res.wordCard.definition || res.wordCard.meaning, "A rare type of mineral found in deep caves", "To quickly run away from danger", "The process of creating something new"] : [];
       const rawOptions = res.wordCard?.activity?.questions?.[0]?.options || fallbackOptions;
-      setShuffledOptions([...rawOptions].sort(() => Math.random() - 0.5));
+      setShuffledOptions(shuffleArray(rawOptions));
 
       // Auto-mark Step 1 (Open Vault) if not done
       const step1 = res.ritual.steps?.find((s: any) => s.step_number === 1);
